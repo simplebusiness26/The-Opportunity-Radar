@@ -4,6 +4,8 @@ import { generateBrief } from '../../application/system/brief';
 import { evaluateAlerts } from '../../application/system/alerts';
 import { refreshEvidenceStrength } from '../../application/system/decay-refresh';
 import { ingestSource } from '../../application/sources/ingest';
+import { investigateOpportunity } from '../../pipeline/investigations/runner';
+import { decideDepth } from '../../domain/investigation/policy';
 import { defineJobs, JobBlocked, type JobContext } from '../types';
 import { projectEvents } from '../event-router';
 
@@ -223,4 +225,114 @@ export const JOB_REGISTRY = defineJobs([
       return { detail: { removed } };
     },
   },
+  {
+    kind: 'opportunity.investigate',
+    description: 'Runs the investigation roles that the depth policy has earned.',
+    timeoutSec: 900,
+    requires: 'ai',
+    handler: async (context) => {
+      const opportunityId = String(context.job.payload.opportunityId ?? '');
+      if (!opportunityId) return { detail: { skipped: 'no opportunity identified' } };
+
+      const investigation = context.investigation;
+      if (!investigation) {
+        throw new JobBlocked(
+          'Investigation is not available in this worker.',
+          'Run the worker built with the AI gateway.',
+        );
+      }
+
+      const outcome = await investigateOpportunity(investigation, systemCtx(context), opportunityId, {
+        jobId: context.job.id,
+        runId: context.job.runId ?? undefined,
+        runCapUsd: typeof context.job.payload.runCapUsd === 'number' ? context.job.payload.runCapUsd : undefined,
+      });
+
+      if (outcome.blockedBy) {
+        // Held rather than failed: no provider, or the budget is spent. Either
+        // resolves on its own -- one when the owner connects something, the
+        // other at period rollover.
+        throw new JobBlocked(outcome.blockedBy, 'Connect a provider, or raise the budget.');
+      }
+
+      return {
+        detail: {
+          stage: outcome.stage,
+          proceeded: outcome.proceeded,
+          reason: outcome.reason,
+          rolesRun: outcome.runs.filter((run) => run.status === 'complete').map((run) => run.role),
+          recommendation: outcome.recommendation,
+          counterEvidence: outcome.counterEvidenceAttached,
+          costUsd: outcome.costUsd,
+        },
+      };
+    },
+  },
+  {
+    kind: 'opportunities.sweep_investigations',
+    description: 'Finds opportunities that have earned their next investigation stage.',
+    timeoutSec: 300,
+    handler: async (context) => {
+      const opportunities = await context.repos.opportunities.list(context.job.workspaceId, {
+        states: ['detected', 'watching', 'investigating', 'candidate'],
+        limit: 100,
+      });
+
+      let enqueued = 0;
+      let held = 0;
+
+      for (const opportunity of opportunities) {
+        const score = await context.repos.scores.current(context.job.workspaceId, opportunity.id);
+        const completedRoles = await context.repos.investigations.completedRoles(
+          context.job.workspaceId,
+          'opportunity',
+          opportunity.id,
+        );
+
+        // The gate is evaluated here as well as inside the runner, so a
+        // workspace full of thin candidates does not queue a hundred jobs that
+        // will each immediately refuse.
+        const decision = decideDepth({
+          uniqueEvidenceCount: readEvidenceCount(score?.inputsSnapshot, 'uniqueEvidence'),
+          independentSourceCount: readEvidenceCount(score?.inputsSnapshot, 'independentSources'),
+          preliminaryScore: score?.attractiveness ?? 0,
+          confidence: score?.confidence ?? 0,
+          hasSpendingEvidence: false,
+          completedRoles,
+          redTeamVerdict: null,
+        });
+
+        if (!decision.proceed) {
+          held += 1;
+          continue;
+        }
+
+        const job = await context.repos.jobs.enqueue(context.job.workspaceId, {
+          kind: 'opportunity.investigate',
+          payload: { opportunityId: opportunity.id },
+          dedupeKey: `opportunity.investigate:${opportunity.id}`,
+          runId: context.job.runId,
+        });
+        if (job) enqueued += 1;
+      }
+
+      return { detail: { considered: opportunities.length, enqueued, held } };
+    },
+  },
 ]);
+
+/**
+ * Reads one of the headline evidence counts out of a stored score.
+ *
+ * The counts are part of the frozen input snapshot the score was computed
+ * from, which is exactly what should gate further spending: the sweep asks
+ * what was true when the score was taken, rather than recomputing the whole
+ * evidence picture for every opportunity it looks at.
+ */
+function readEvidenceCount(snapshot: unknown, key: 'uniqueEvidence' | 'independentSources'): number {
+  if (typeof snapshot !== 'object' || snapshot === null) return 0;
+  const evidence = (snapshot as { evidence?: unknown }).evidence;
+  if (typeof evidence !== 'object' || evidence === null) return 0;
+  const value = (evidence as Record<string, unknown>)[key];
+  return typeof value === 'number' ? value : 0;
+}

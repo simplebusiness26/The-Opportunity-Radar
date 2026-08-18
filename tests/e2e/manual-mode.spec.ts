@@ -154,3 +154,24 @@ test('duplicate evidence is reported as a repeat, not counted twice', async ({ p
   // the same claim rather than as a second, independent observation.
   await expect(page.getByText(/counted as a repeat mention rather than new evidence/)).toBeVisible();
 });
+
+/**
+ * Investigation is the first feature that genuinely cannot work without a
+ * provider. It has to say so plainly and stay out of the way, rather than
+ * offering a control that fails or a spinner that never resolves.
+ */
+test('investigation says it needs a provider rather than pretending', async ({ page }) => {
+  await signUpFresh(page, 'No Provider');
+
+  await page.goto('/opportunities/new');
+  await page.getByLabel('Title').fill('Something worth investigating one day');
+  await page
+    .getByLabel('Thesis')
+    .fill('There may be something here, but nothing has been researched about it yet.');
+  await page.getByRole('button', { name: 'Create opportunity' }).click();
+  await expect(page).toHaveURL(/\/opportunities\/[0-9a-f-]{36}$/);
+
+  await expect(page.getByRole('button', { name: 'Investigate' })).toBeDisabled();
+  await expect(page.getByText('Investigation needs an AI provider')).toBeVisible();
+  await expect(page.getByText('No AI provider is connected, so nothing can be investigated')).toBeVisible();
+});

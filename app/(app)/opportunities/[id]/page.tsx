@@ -7,6 +7,9 @@ import type { DimensionOutcome } from '../../../../src/domain/scoring/engine';
 import { Callout, DemoBadge, Panel, PanelHeader } from '../../../../src/web/ui/primitives';
 import { DimensionBar, EvidenceCounts, ScorePair, StateChip } from '../../../../src/web/ui/score';
 import { OpportunityActions } from '../../../../src/web/components/opportunity-actions';
+import { InvestigationLogPanels } from '../../../../src/web/components/investigation-log';
+import { readInvestigationLog } from '../../../../src/application/opportunities/investigation-log';
+import { readModeStatus } from '../../../../src/application/system/mode';
 import { readRequestContext, requireWorkspacePage } from '../../../../src/web/http/context';
 import { container } from '../../../../src/composition/container';
 
@@ -21,10 +24,12 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   const opportunity = await c.repos.opportunities.findById(ctx.workspaceId, id);
   if (!opportunity) notFound();
 
-  const [score, transitions, attached] = await Promise.all([
+  const [score, transitions, attached, investigation, mode] = await Promise.all([
     c.repos.scores.current(ctx.workspaceId, id),
     c.repos.opportunities.listTransitions(id),
     c.repos.opportunities.evidenceFor(id),
+    readInvestigationLog(c.repos, ctx, id),
+    readModeStatus(c.repos, ctx.workspaceId),
   ]);
 
   const snapshot = score?.inputsSnapshot as
@@ -89,6 +94,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         state={opportunity.state}
         allowed={[...allowedTransitions(opportunity.state)]}
         csrfToken={session?.csrfSecret ?? ''}
+        canInvestigate={mode.mode !== 'manual'}
       />
 
       <Panel>
@@ -202,6 +208,8 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
           </ul>
         )}
       </Panel>
+
+      <InvestigationLogPanels log={investigation} aiConfigured={mode.mode !== 'manual'} />
 
       <Panel>
         <PanelHeader title="History" />

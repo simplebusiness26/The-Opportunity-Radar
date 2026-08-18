@@ -43,6 +43,13 @@ export const DEFAULT_SCHEDULES = [
     description: 'Ages stored evidence and flags what has gone stale.',
   },
   {
+    key: 'opportunities.sweep_investigations',
+    cron: '35 5 * * *',
+    jobKind: 'opportunities.sweep_investigations',
+    description:
+      'Looks for opportunities that have earned their next investigation stage. Does nothing without AI configured.',
+  },
+  {
     key: 'brief.generate',
     cron: '0 6 * * *',
     jobKind: 'brief.generate',

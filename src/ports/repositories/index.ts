@@ -1,6 +1,11 @@
 import type { AuditRepository, SecretRepository } from './audit';
 import type { AiRepository, BudgetRepository } from './ai';
 import type { SourceRepository } from './sources';
+import type {
+  InvestigationRepository,
+  UncertaintyRepository,
+  ValidationRepository,
+} from './investigation';
 import type { ExecutionHistoryRepository, GraphRepository } from './graph';
 import type {
   AlertRepository,
@@ -53,6 +58,9 @@ export interface Repositories {
   budgets: BudgetRepository;
   secrets: SecretRepository;
   sources: SourceRepository;
+  investigations: InvestigationRepository;
+  uncertainty: UncertaintyRepository;
+  validation: ValidationRepository;
   executionHistory: ExecutionHistoryRepository;
 
   /**
@@ -86,3 +94,5 @@ export * from './graph';
 export * from './ai';
 
 export * from './sources';
+
+export * from './investigation';

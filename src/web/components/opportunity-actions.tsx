@@ -15,17 +15,21 @@ export function OpportunityActions({
   state,
   allowed,
   csrfToken,
+  canInvestigate,
 }: {
   opportunityId: string;
   state: string;
   allowed: string[];
   csrfToken: string;
+  /** False when no AI provider is connected; the control says so rather than failing. */
+  canInvestigate: boolean;
 }) {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remedy, setRemedy] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [queued, setQueued] = useState<string | null>(null);
 
   async function call(path: string, body?: unknown): Promise<boolean> {
     setError(null);
@@ -50,6 +54,39 @@ export function OpportunityActions({
     setPending(null);
   }
 
+  /**
+   * Asks for an investigation rather than performing one.
+   *
+   * The work is queued and drained by the machine, so it obeys the same budget
+   * and concurrency limits as everything else. The button reports what happened
+   * to the request, not a result it cannot yet have.
+   */
+  async function investigate() {
+    setPending('investigate');
+    setQueued(null);
+    const response = await fetch(`/api/v1/opportunities/${opportunityId}/investigation`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-radar-csrf': csrfToken },
+      body: JSON.stringify({}),
+    });
+
+    if (response.ok) {
+      const payload = (await response.json()) as {
+        data?: { queued: boolean; reason: string | null };
+      };
+      setQueued(
+        payload.data?.queued
+          ? 'Queued. It runs on the next pass of the machine, and the findings appear below.'
+          : (payload.data?.reason ?? 'Nothing was queued.'),
+      );
+    } else {
+      const payload = (await response.json()) as { error?: { message: string; remedy?: string } };
+      setError(payload.error?.message ?? 'That did not work.');
+      setRemedy(payload.error?.remedy ?? null);
+    }
+    setPending(null);
+  }
+
   async function transition() {
     if (!target) return;
     setPending('transition');
@@ -71,7 +108,21 @@ export function OpportunityActions({
           <Button variant="secondary" onClick={rescore} disabled={pending !== null}>
             {pending === 'score' ? 'Scoring…' : 'Recalculate score'}
           </Button>
+          <Button
+            variant="secondary"
+            onClick={investigate}
+            disabled={pending !== null || !canInvestigate}
+          >
+            {pending === 'investigate' ? 'Queueing…' : 'Investigate'}
+          </Button>
         </div>
+
+        {!canInvestigate ? (
+          <p className="text-xs text-ink-muted">
+            Investigation needs an AI provider. Everything else here works without one.
+          </p>
+        ) : null}
+        {queued ? <p className="text-xs text-ink-muted">{queued}</p> : null}
 
         <div className="space-y-3 border-t border-line pt-3">
           <Field id="toState" label="Move to">

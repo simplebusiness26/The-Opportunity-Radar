@@ -4,6 +4,11 @@ import type { Executor } from './_ctx';
 import { createAuditRepository, createSecretRepository } from './audit';
 import { createAiRepository, createBudgetRepository } from './ai';
 import { createSourceRepository } from './sources';
+import {
+  createInvestigationRepository,
+  createUncertaintyRepository,
+  createValidationRepository,
+} from './investigation';
 import { createExecutionHistoryRepository, createGraphRepository } from './graph';
 import {
   createAlertRepository,
@@ -54,6 +59,9 @@ export function createRepositories(db: Executor): Repositories {
     budgets: createBudgetRepository(db),
     secrets: createSecretRepository(db),
     sources: createSourceRepository(db),
+    investigations: createInvestigationRepository(db),
+    uncertainty: createUncertaintyRepository(db),
+    validation: createValidationRepository(db),
     executionHistory: createExecutionHistoryRepository(db),
   };
 }

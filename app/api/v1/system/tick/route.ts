@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { container } from '../../../../../src/composition/container';
+import { jobDependencies } from '../../../../../src/composition/jobs';
 import { JOB_REGISTRY } from '../../../../../src/jobs/handlers/index';
 import { tick } from '../../../../../src/jobs/tick';
 import { apiError, apiSuccess } from '../../../../../src/web/http/response';
@@ -50,15 +51,7 @@ export async function POST(request: NextRequest) {
         clock: c.clock,
         registry: JOB_REGISTRY,
         workerId: `tick-${randomUUID().slice(0, 8)}`,
-        ingest: {
-          repos: c.repos,
-          tx: c.tx,
-          clock: c.clock,
-          http: c.http,
-          adapters: c.adapters,
-          secretBox: c.secretBox,
-          userAgent: c.userAgent,
-        },
+        ...jobDependencies(c),
       },
       {
         maxJobs: Math.min(body.maxJobs ?? 25, 200),

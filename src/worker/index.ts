@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { loadEnvFile } from '../composition/load-env-file';
 import { buildContainer } from '../composition/container';
+import { jobDependencies } from '../composition/jobs';
 import { JOB_REGISTRY } from '../jobs/handlers/index';
 import { tick } from '../jobs/tick';
 
@@ -40,15 +41,7 @@ async function main(): Promise<void> {
           clock: c.clock,
           registry: JOB_REGISTRY,
           workerId,
-          ingest: {
-            repos: c.repos,
-            tx: c.tx,
-            clock: c.clock,
-            http: c.http,
-            adapters: c.adapters,
-            secretBox: c.secretBox,
-            userAgent: c.userAgent,
-          },
+          ...jobDependencies(c),
         },
         { maxJobs: c.env.RADAR_WORKER_CONCURRENCY * 5, budgetMs: 20_000 },
       );

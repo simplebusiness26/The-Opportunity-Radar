@@ -2,6 +2,7 @@ import type { Clock } from '../ports/clock';
 import type { Repositories, Transactor } from '../ports/repositories/index';
 import type { JobRow } from '../ports/repositories/ops';
 import type { IngestDeps } from '../application/sources/ingest';
+import type { InvestigationDeps } from '../pipeline/investigations/runner';
 
 /**
  * What a handler is given, and what it may do.
@@ -21,6 +22,11 @@ export interface JobContext {
    * deliberately runs no fetching is a supported configuration.
    */
   ingest?: IngestDeps;
+  /**
+   * Present only in a worker built with an AI gateway. Absent means the
+   * investigation jobs hold rather than fail, exactly like ingestion.
+   */
+  investigation?: InvestigationDeps;
   /** Extends the lease. Long handlers must call this or the reaper reclaims them. */
   heartbeat(): Promise<void>;
   /** Persists partial progress. Survives a crash; the retry resumes from it. */

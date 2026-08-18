@@ -12,3 +12,4 @@ export * from './ops';
 export * from './graph';
 export * from './ai';
 export * from './sources';
+export * from './investigation';

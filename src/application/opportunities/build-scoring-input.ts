@@ -15,12 +15,24 @@ import type { OpportunityRow } from '../../ports/repositories/opportunities';
  * unknown as an unknown, and filling in a plausible default here would quietly
  * destroy that distinction.
  */
+/**
+ * Context a caller can supply on top of what the evidence itself establishes:
+ * capability coverage from the intelligence graph, competitor counts from an
+ * investigation, and so on. Partial at every level, because a caller that knows
+ * one field should not have to invent the rest.
+ */
+export type ScoringContext = {
+  [K in 'market' | 'internal' | 'economics' | 'uncertainty' | 'timing' | 'calibration']?: Partial<
+    ScoringInput[K]
+  >;
+};
+
 export async function buildScoringInput(
   repos: Repositories,
   workspaceId: string,
   opportunity: OpportunityRow,
   now: Date,
-  context: Partial<Pick<ScoringInput, 'market' | 'internal' | 'economics' | 'uncertainty' | 'timing' | 'calibration'>> = {},
+  context: ScoringContext = {},
 ): Promise<ScoringInput> {
   const attached = await repos.opportunities.evidenceFor(opportunity.id);
   const forIds = attached.filter((row) => row.stance === 'for').map((row) => row.evidenceUnitId);
