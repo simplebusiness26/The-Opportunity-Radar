@@ -134,6 +134,15 @@ describe('missing evidence', () => {
   });
 });
 
+/** Market facts good enough that the decisive dimensions are actually measured. */
+const MEASURED_MARKET = {
+  competitorCount: 3,
+  freeAlternativeCount: 0,
+  competitorWeaknessCount: 4,
+  observedMonthlySpend: [220, 180, 260],
+  momentum30d: 0.2,
+};
+
 describe('confidence', () => {
   it('is capped when nothing independent supports the thesis', () => {
     const result = scoreOpportunity(
@@ -183,9 +192,10 @@ describe('confidence', () => {
       scoringInput({
         evidence: {
           rawMentions: 6, uniqueEvidence: 4, independentSources: 2, sourceDiversity: 0.5,
-          aiDerivedMentions: 0, strengthByType: { pain: 1 }, countByClass: { social: 4 },
+          aiDerivedMentions: 0, strengthByType: { pain: 1, spending: 0.5 }, countByClass: { social: 4 },
           freshness: 0.6, counterEvidenceCount: 0, counterEvidenceStrength: 0,
         },
+        market: MEASURED_MARKET,
       }),
     );
     const strong = scoreOpportunity(
@@ -196,6 +206,7 @@ describe('confidence', () => {
           countByClass: { direct_customer: 8, transaction: 4, primary: 2 },
           freshness: 0.95, counterEvidenceCount: 0, counterEvidenceStrength: 0,
         },
+        market: MEASURED_MARKET,
       }),
     );
 
@@ -209,8 +220,8 @@ describe('confidence', () => {
       aiDerivedMentions: 0, strengthByType: { spending: 4, pain: 3 },
       countByClass: { direct_customer: 10 }, freshness: 0.9,
     };
-    const before = scoreOpportunity(scoringInput({ evidence: { ...base, counterEvidenceCount: 0, counterEvidenceStrength: 0 } }));
-    const after = scoreOpportunity(scoringInput({ evidence: { ...base, counterEvidenceCount: 6, counterEvidenceStrength: 5 } }));
+    const before = scoreOpportunity(scoringInput({ evidence: { ...base, counterEvidenceCount: 0, counterEvidenceStrength: 0 }, market: MEASURED_MARKET }));
+    const after = scoreOpportunity(scoringInput({ evidence: { ...base, counterEvidenceCount: 6, counterEvidenceStrength: 5 }, market: MEASURED_MARKET }));
 
     expect(after.confidence.value).toBeLessThan(before.confidence.value);
   });
@@ -221,8 +232,10 @@ describe('confidence', () => {
       aiDerivedMentions: 0, strengthByType: { spending: 4 }, countByClass: { direct_customer: 10 },
       freshness: 0.9, counterEvidenceCount: 0, counterEvidenceStrength: 0,
     };
-    const settled = scoreOpportunity(scoringInput({ evidence }));
-    const open = scoreOpportunity(scoringInput({ evidence, uncertainty: { criticalUnknownCount: 4, resolvedUnknownCount: 0, assumptionCount: 6 } }));
+    const settled = scoreOpportunity(scoringInput({ evidence, market: MEASURED_MARKET }));
+    const open = scoreOpportunity(
+      scoringInput({ evidence, market: MEASURED_MARKET, uncertainty: { criticalUnknownCount: 4, resolvedUnknownCount: 0, assumptionCount: 6 } }),
+    );
 
     expect(open.confidence.value).toBeLessThan(settled.confidence.value);
   });
@@ -233,13 +246,51 @@ describe('confidence', () => {
       aiDerivedMentions: 0, strengthByType: { spending: 4 }, countByClass: { direct_customer: 10 },
       freshness: 0.9, counterEvidenceCount: 0, counterEvidenceStrength: 0,
     };
-    const tinySample = scoreOpportunity(scoringInput({ evidence, calibration: { sampleSize: 3, confidenceBias: 0.4, buildEstimateRatio: null } }));
-    const noHistory = scoreOpportunity(scoringInput({ evidence }));
+    const tinySample = scoreOpportunity(scoringInput({ evidence, market: MEASURED_MARKET, calibration: { sampleSize: 3, confidenceBias: 0.4, buildEstimateRatio: null } }));
+    const noHistory = scoreOpportunity(scoringInput({ evidence, market: MEASURED_MARKET }));
 
     expect(tinySample.confidence.value).toBe(noHistory.confidence.value);
 
-    const realSample = scoreOpportunity(scoringInput({ evidence, calibration: { sampleSize: 12, confidenceBias: 0.4, buildEstimateRatio: null } }));
+    const realSample = scoreOpportunity(scoringInput({ evidence, market: MEASURED_MARKET, calibration: { sampleSize: 12, confidenceBias: 0.4, buildEstimateRatio: null } }));
     expect(realSample.confidence.value).toBeLessThan(noHistory.confidence.value);
+  });
+});
+
+describe('unmeasured decisive factors', () => {
+  /**
+   * Weight of complaint is not evidence of a market. However many unrelated
+   * people report a problem, the thesis stays uncertain until somebody has
+   * checked whether they would pay and what they already use instead.
+   */
+  it('caps confidence when nobody has checked whether anyone would pay', () => {
+    const manyComplaints = scoringInput({
+      evidence: {
+        rawMentions: 60, uniqueEvidence: 40, independentSources: 25, sourceDiversity: 0.98,
+        aiDerivedMentions: 0, strengthByType: { pain: 12 },
+        countByClass: { community: 30, direct_customer: 10 },
+        freshness: 1, counterEvidenceCount: 0, counterEvidenceStrength: 0,
+      },
+    });
+
+    const result = scoreOpportunity(manyComplaints);
+
+    expect(result.confidence.value).toBeLessThanOrEqual(0.5);
+    expect(result.confidence.cap.applied).toBe(true);
+    expect(result.confidence.cap.reason).toContain('would pay');
+  });
+
+  it('lifts the cap once those factors are actually established', () => {
+    const evidence = {
+      rawMentions: 60, uniqueEvidence: 40, independentSources: 25, sourceDiversity: 0.98,
+      aiDerivedMentions: 0, strengthByType: { pain: 12, spending: 6 },
+      countByClass: { community: 30, direct_customer: 10 },
+      freshness: 1, counterEvidenceCount: 0, counterEvidenceStrength: 0,
+    };
+
+    const unchecked = scoreOpportunity(scoringInput({ evidence }));
+    const checked = scoreOpportunity(scoringInput({ evidence, market: MEASURED_MARKET }));
+
+    expect(checked.confidence.value).toBeGreaterThan(unchecked.confidence.value);
   });
 });
 

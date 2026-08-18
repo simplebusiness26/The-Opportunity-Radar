@@ -8,6 +8,12 @@ import {
   createEvidenceRepository,
   createSignalRepository,
 } from './signals';
+import {
+  createClusterRepository,
+  createDecisionRepository,
+  createOpportunityRepository,
+  createScoreRepository,
+} from './opportunities';
 import { createSessionRepository, createUserRepository } from './users';
 
 /** Binds every repository to one executor: the pool, or an open transaction. */
@@ -20,6 +26,10 @@ export function createRepositories(db: Executor): Repositories {
     signals: createSignalRepository(db),
     evidence: createEvidenceRepository(db),
     entities: createEntityRepository(db),
+    clusters: createClusterRepository(db),
+    opportunities: createOpportunityRepository(db),
+    scores: createScoreRepository(db),
+    decisions: createDecisionRepository(db),
   };
 }
 

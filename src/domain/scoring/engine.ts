@@ -129,7 +129,13 @@ export function scoreOpportunity(input: ScoringInput, weights: WeightOverrides =
     };
   }
 
-  const confidence = computeConfidence(input);
+  // Confidence is told which dimensions had nothing behind them, so an
+  // unexamined decisive factor lowers certainty rather than passing unnoticed.
+  const confidence = computeConfidence(input, {
+    unmeasuredDimensions: outcomes
+      .filter((outcome) => outcome.status !== 'ok')
+      .map((outcome) => outcome.key),
+  });
   // The confidence composite is informational; the authoritative value is the
   // one computed by its own engine, never a weighted average of dimensions.
   composites.confidence = {

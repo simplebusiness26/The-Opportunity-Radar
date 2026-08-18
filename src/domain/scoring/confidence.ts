@@ -26,8 +26,28 @@ export interface ConfidenceResult {
  */
 export const NO_INDEPENDENT_SOURCE_CEILING = 0.15;
 export const SINGLE_SOURCE_CEILING = 0.45;
+export const UNMEASURED_DECISIVE_CEILING = 0.5;
 
-export function computeConfidence(input: ScoringInput): ConfidenceResult {
+/**
+ * Dimensions a thesis cannot be confidently held without.
+ *
+ * Confidence is confidence in the *thesis*, not in the pile of evidence. Twelve
+ * unrelated people complaining is strong support for "this problem exists" and
+ * says nothing at all about "people would pay to fix it" -- and the second is
+ * usually what is actually being claimed. Leaving one of these unmeasured caps
+ * confidence, because the gap is the reason to be unsure.
+ */
+export const DECISIVE_DIMENSIONS = ['willingness_to_pay', 'competition_gap'] as const;
+
+export interface ConfidenceContext {
+  /** Dimension keys that could not be computed for want of evidence. */
+  unmeasuredDimensions: string[];
+}
+
+export function computeConfidence(
+  input: ScoringInput,
+  context: ConfidenceContext = { unmeasuredDimensions: [] },
+): ConfidenceResult {
   const factors: ConfidenceResult['factors'] = [];
 
   const independent = input.evidence.independentSources;
@@ -108,7 +128,20 @@ export function computeConfidence(input: ScoringInput): ConfidenceResult {
     value = clamp(value + correction);
   }
 
-  const cap = applyCaps(input, value);
+  const unmeasuredDecisive = DECISIVE_DIMENSIONS.filter((key) =>
+    context.unmeasuredDimensions.includes(key),
+  );
+
+  if (unmeasuredDecisive.length > 0) {
+    factors.push({
+      key: 'unmeasured_decisive',
+      label: 'Unmeasured decisive factors',
+      contribution: 0,
+      note: `Nothing establishes ${unmeasuredDecisive.map(describeDimension).join(' or ')} yet.`,
+    });
+  }
+
+  const cap = applyCaps(input, value, unmeasuredDecisive);
   const finalValue = cap.ceiling !== null ? Math.min(value, cap.ceiling) : value;
 
   return {
@@ -119,7 +152,19 @@ export function computeConfidence(input: ScoringInput): ConfidenceResult {
   };
 }
 
-function applyCaps(input: ScoringInput, value: number): ConfidenceResult['cap'] {
+function describeDimension(key: string): string {
+  return key === 'willingness_to_pay'
+    ? 'that anyone would pay'
+    : key === 'competition_gap'
+      ? 'what people already use instead'
+      : key.replace(/_/g, ' ');
+}
+
+function applyCaps(
+  input: ScoringInput,
+  value: number,
+  unmeasuredDecisive: readonly string[],
+): ConfidenceResult['cap'] {
   if (input.evidence.independentSources === 0) {
     return {
       applied: value > NO_INDEPENDENT_SOURCE_CEILING,
@@ -136,6 +181,19 @@ function applyCaps(input: ScoringInput, value: number): ConfidenceResult['cap'] 
       applied: value > SINGLE_SOURCE_CEILING,
       reason: 'Everything known about this traces back to one source.',
       ceiling: SINGLE_SOURCE_CEILING,
+    };
+  }
+
+  // Weight of complaint is not evidence of a market. However many people report
+  // the problem, the thesis stays uncertain until someone has checked whether
+  // they would pay and what they use instead.
+  if (unmeasuredDecisive.length > 0) {
+    return {
+      applied: value > UNMEASURED_DECISIVE_CEILING,
+      reason: `The evidence describes the problem well, but nothing establishes ${unmeasuredDecisive
+        .map(describeDimension)
+        .join(' or ')}.`,
+      ceiling: UNMEASURED_DECISIVE_CEILING,
     };
   }
 

@@ -4,6 +4,12 @@ import type {
   EvidenceRepository,
   SignalRepository,
 } from './intelligence';
+import type {
+  ClusterRepository,
+  DecisionRepository,
+  OpportunityRepository,
+  ScoreRepository,
+} from './opportunities';
 import type { SessionRepository, TenancyRepository, UserRepository } from './auth';
 
 /**
@@ -19,6 +25,10 @@ export interface Repositories {
   signals: SignalRepository;
   evidence: EvidenceRepository;
   entities: EntityRepository;
+  clusters: ClusterRepository;
+  opportunities: OpportunityRepository;
+  scores: ScoreRepository;
+  decisions: DecisionRepository;
 
   /**
    * Introduced with the AI and ingestion layers. Optional here so that code
@@ -45,3 +55,4 @@ export interface Transactor {
 export * from './audit';
 export * from './auth';
 export * from './intelligence';
+export * from './opportunities';
