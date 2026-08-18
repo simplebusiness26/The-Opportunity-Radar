@@ -1,0 +1,56 @@
+{
+  "key": "loud-complaint-no-money",
+  "title": "Group scheduling for amateur sports clubs",
+  "thesis": "Everyone complains about organising fixtures, so a tool for it should sell.",
+  "note": "The trap: high complaint volume, a free alternative, no money anywhere.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Complaint thread about organising fixtures",
+      "body": "Organising our weekly game is a nightmare. Everyone uses a different chat app and nobody replies to the poll.",
+      "signalType": "pain",
+      "evidenceClass": "community",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "Another complaint thread, different club",
+      "body": "Same problem every week. We use a free group chat and a spreadsheet and it just about works.",
+      "signalType": "pain",
+      "evidenceClass": "community",
+      "url": "https://source-2.invalid/item"
+    },
+    {
+      "id": "e3",
+      "title": "Club secretary describes the workaround",
+      "body": "I keep a spreadsheet and chase people by text. It costs nothing but my evening.",
+      "signalType": "workaround",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-3.invalid/item"
+    },
+    {
+      "id": "e4",
+      "title": "Existing free tool covers most of it",
+      "body": "There is a free scheduling tool most clubs already use for polls, and nobody pays for anything beyond it.",
+      "signalType": "competitor_weakness",
+      "evidenceClass": "community",
+      "url": "https://source-4.invalid/item"
+    }
+  ],
+  "expect": {
+    "customerMentions": [
+      "club"
+    ],
+    "willingnessToPay": [
+      "absent",
+      "insufficient_evidence",
+      "stated_only"
+    ],
+    "spendingEvidenceAtLeast": 0,
+    "freeAlternativeExpected": true,
+    "redTeamVerdictIn": [
+      "fatal",
+      "serious_but_testable"
+    ]
+  }
+}

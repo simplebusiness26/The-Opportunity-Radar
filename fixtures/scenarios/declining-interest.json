@@ -1,0 +1,43 @@
+{
+  "key": "declining-interest",
+  "title": "A marketplace for short-term studio hire",
+  "thesis": "Studios sit empty and creators need space, so a marketplace should work.",
+  "note": "Interest is visibly declining and two attempts have already failed.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Two prior marketplaces closed",
+      "body": "Both attempts closed within two years, citing the cost of acquiring both sides.",
+      "signalType": "competitor_weakness",
+      "evidenceClass": "primary",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "Studio owner describes direct booking",
+      "body": "Our regulars book by text. We tried a marketplace and it brought people who never came back.",
+      "signalType": "workaround",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-2.invalid/item"
+    },
+    {
+      "id": "e3",
+      "title": "Search interest falling",
+      "body": "Interest in studio hire has fallen steadily over three years.",
+      "signalType": "trend",
+      "evidenceClass": "reliable_secondary",
+      "url": "https://source-3.invalid/item"
+    }
+  ],
+  "expect": {
+    "redTeamVerdictIn": [
+      "fatal",
+      "serious_but_testable"
+    ],
+    "redTeamCategories": [
+      "prior_failures",
+      "declining_interest",
+      "acquisition_difficulty"
+    ]
+  }
+}

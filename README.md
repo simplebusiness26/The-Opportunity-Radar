@@ -19,9 +19,13 @@ have", "productise that component", "wait", or "do nothing — the evidence is i
 
 ## Status
 
-Under active construction. `PROJECT_STATE.md` is the honest record of what works, what does not,
-and what still needs owner-supplied credentials. `docs/` holds the design; `CONNECTIONS_REQUIRED.md`
-holds the connection checklist.
+Built and green. `PROJECT_STATE.md` is the honest record of what works, what does not, and what
+still needs owner-supplied credentials; `ROADMAP.md` says what was deliberately left unbuilt and
+why. `docs/` holds the design (start at `docs/INDEX.md`) and `CONNECTIONS_REQUIRED.md` the connection
+checklist. `HANDOVER.md` is the summary for somebody picking this up.
+
+All five acceptance tests run in CI **with no AI provider connected** — that is the claim Radar
+makes about where its judgement lives, checked rather than asserted.
 
 ## Running it locally
 
@@ -38,6 +42,16 @@ npm run dev                          # http://localhost:3000
 ```
 
 To point at a real PostgreSQL instance instead, set `DATABASE_URL` and re-run `npm run db:migrate`.
+
+For something to look at, `npm run db:seed` creates a demonstration workspace. Everything it
+writes is flagged, and shows a DEMO badge wherever it appears.
+
+```bash
+npm run check          # typecheck, lint, dependency rules, unit and integration tests
+npx playwright test    # end-to-end, including the five acceptance tests
+npm run worker         # the machine, as a long-running process
+npm run tick           # or one pass of it, for cron
+```
 No code changes are involved.
 
 ## Verification

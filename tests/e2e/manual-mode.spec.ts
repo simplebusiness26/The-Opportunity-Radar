@@ -225,3 +225,73 @@ test('setting up says what is missing and why it matters', async ({ page }) => {
   // Connecting AI is genuinely optional and must be labelled as such.
   await expect(page.getByText('optional').first()).toBeVisible();
 });
+
+/**
+ * Sample data that cannot be told apart from real evidence would undermine the
+ * one thing this product sells. The badge is asserted wherever a seeded object
+ * is visible, not merely on the page that created it.
+ */
+test('seeded data is unmistakably marked as demonstration data', async ({ page }) => {
+  // The workspace name deliberately avoids the word: getByText matches
+  // substrings case-insensitively, and a workspace called "Demo Something"
+  // would satisfy this test without the badge existing at all.
+  await signUpFresh(page, 'Sample Labelling');
+
+  const session = await page.request.get('/api/v1/auth/session');
+  const csrf = ((await session.json()) as { data: { csrfToken: string } }).data.csrfToken;
+  const headers = { 'x-radar-csrf': csrf, origin: new URL(page.url()).origin };
+
+  const signal = await page.request.post('/api/v1/signals', {
+    headers,
+    data: {
+      title: 'Seeded observation used for the demonstration',
+      bodyText:
+        'This is demonstration data recorded to show what the interface looks like with something in it.',
+      url: 'https://demo-source.invalid/item',
+      signalTypeKey: 'pain',
+      evidenceClass: 'community',
+      demo: true,
+    },
+  });
+  expect(signal.ok()).toBe(true);
+
+  const opportunity = await page.request.post('/api/v1/opportunities', {
+    headers,
+    data: {
+      title: 'Seeded opportunity used for the demonstration',
+      thesis: 'A demonstration thesis, recorded so the interface has something to show.',
+      typeKey: 'new_product',
+      demo: true,
+    },
+  });
+  expect(opportunity.ok()).toBe(true);
+
+  // Asserted by accessible label rather than by the four characters the badge
+  // happens to render, so a styling change cannot silently remove the meaning.
+  await page.goto('/signals');
+  await expect(page.getByLabel('Demonstration data, not real evidence').first()).toBeVisible();
+
+  await page.goto('/opportunities');
+  await expect(page.getByLabel('Demonstration data, not real evidence').first()).toBeVisible();
+});
+
+/**
+ * An empty installation must show genuine emptiness. Zeros presented as
+ * measurements are worse than no measurement: they read as a finding.
+ */
+test('an empty installation shows empty states, not zeros dressed as metrics', async ({ page }) => {
+  await signUpFresh(page, 'Genuinely Empty');
+
+  await page.goto('/opportunities');
+  await expect(page.getByText('Nothing under consideration')).toBeVisible();
+
+  await page.goto('/signals');
+  await expect(page.getByText('Nothing observed yet')).toBeVisible();
+
+  await page.goto('/intelligence');
+  await expect(page.getByText('Radar cannot judge fit yet')).toBeVisible();
+  await expect(page.getByText(/Not enough history to calibrate/)).toBeVisible();
+
+  await page.goto('/portfolio');
+  await expect(page.getByText('Nothing to compare yet')).toBeVisible();
+});

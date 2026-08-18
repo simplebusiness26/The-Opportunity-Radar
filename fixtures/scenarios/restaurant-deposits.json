@@ -1,0 +1,56 @@
+{
+  "key": "restaurant-deposits",
+  "title": "Deposit automation for restaurant bookings",
+  "thesis": "Independent restaurants already pay for booking software and will pay for deposits.",
+  "note": "The straightforward case: complaint plus observed spending plus a named gap.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Restaurant pays for booking software that cannot take deposits",
+      "body": "We pay 180 a month for our booking system and it still cannot take a deposit, so we eat the loss every weekend.",
+      "signalType": "spending",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-1.invalid/item",
+      "monthlyAmount": 180
+    },
+    {
+      "id": "e2",
+      "title": "Second site pays a separate tool purely for deposits",
+      "body": "We bolted on a payments tool at 45 a month purely to hold deposits, and it does not talk to the booking system.",
+      "signalType": "spending",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-2.invalid/item",
+      "monthlyAmount": 45
+    },
+    {
+      "id": "e3",
+      "title": "Trade body reports the cost of no-shows",
+      "body": "A survey of member restaurants put the annual cost of no-shows in the low thousands per site.",
+      "signalType": "pain",
+      "evidenceClass": "primary",
+      "url": "https://source-3.invalid/item"
+    },
+    {
+      "id": "e4",
+      "title": "Booking platform limits deposits to its enterprise tier",
+      "body": "The feature is limited to their enterprise tier, well above what an independent site would pay.",
+      "signalType": "competitor_weakness",
+      "evidenceClass": "primary",
+      "url": "https://source-4.invalid/item"
+    }
+  ],
+  "expect": {
+    "customerMentions": [
+      "restaurant"
+    ],
+    "willingnessToPay": [
+      "demonstrated"
+    ],
+    "spendingEvidenceAtLeast": 1,
+    "redTeamVerdictIn": [
+      "survivable",
+      "serious_but_testable",
+      "no_material_objection"
+    ]
+  }
+}

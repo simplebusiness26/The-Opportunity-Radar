@@ -57,6 +57,14 @@ Determinism comes from three levers:
 Never run `playwright install`: the browser is preinstalled and the pinned
 version matches it.
 
+## One database, run in sequence
+
+The integration and end-to-end suites share the development database, and the
+integration suite truncates every table between tests. Running them at the same
+time will destroy the other's data mid-run and produce failures that look like
+product bugs. `npm run check && npx playwright test` runs them in order; do not
+run them in parallel shells.
+
 ## Determinism rules
 
 `Date.now()` and `new Date()` are banned outside `src/adapters/clock` by the

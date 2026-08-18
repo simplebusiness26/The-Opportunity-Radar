@@ -1,0 +1,40 @@
+{
+  "key": "single-source",
+  "title": "Scheduling tool for mobile dog groomers",
+  "thesis": "One long forum thread suggests mobile groomers need better scheduling.",
+  "note": "Everything traces to one origin. Confidence must stay capped whatever the model says.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Forum thread, first post",
+      "body": "Scheduling around traffic is the hardest part of the job.",
+      "signalType": "pain",
+      "evidenceClass": "community",
+      "url": "https://one-forum.invalid/thread#1"
+    },
+    {
+      "id": "e2",
+      "title": "Forum thread, second post",
+      "body": "Agreed, I lose an hour a day to it.",
+      "signalType": "pain",
+      "evidenceClass": "community",
+      "url": "https://one-forum.invalid/thread#2"
+    },
+    {
+      "id": "e3",
+      "title": "Forum thread, third post",
+      "body": "Same here, and the apps I tried were built for salons.",
+      "signalType": "pain",
+      "evidenceClass": "community",
+      "url": "https://one-forum.invalid/thread#3"
+    }
+  ],
+  "expect": {
+    "willingnessToPay": [
+      "insufficient_evidence",
+      "absent",
+      "stated_only"
+    ],
+    "singleOrigin": true
+  }
+}

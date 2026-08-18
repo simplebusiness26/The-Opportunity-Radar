@@ -1,0 +1,40 @@
+{
+  "key": "productisation",
+  "title": "Productising an internal reconciliation tool",
+  "thesis": "The reconciliation tool we built for ourselves solves a problem other firms describe.",
+  "note": "Internal leverage is the whole point; external evidence is thin but real.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Finance lead describes the same reconciliation problem",
+      "body": "We reconcile three systems by hand every month. It takes two days and it is always wrong somewhere.",
+      "signalType": "labour",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "A vendor charges heavily for the equivalent",
+      "body": "The established tool starts at four figures a month, which is why smaller firms do it by hand.",
+      "signalType": "spending",
+      "evidenceClass": "reliable_secondary",
+      "url": "https://source-2.invalid/item",
+      "monthlyAmount": 1200
+    },
+    {
+      "id": "e3",
+      "title": "Our own tool already does this",
+      "body": "We built reconciliation for our own books eighteen months ago and it has run since without changes.",
+      "signalType": "asset",
+      "evidenceClass": "primary",
+      "url": "https://source-3.invalid/item"
+    }
+  ],
+  "expect": {
+    "willingnessToPay": [
+      "demonstrated",
+      "stated_only"
+    ],
+    "spendingEvidenceAtLeast": 1
+  }
+}

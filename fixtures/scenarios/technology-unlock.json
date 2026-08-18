@@ -1,0 +1,37 @@
+{
+  "key": "technology-unlock",
+  "title": "On-device transcription for field surveys",
+  "thesis": "Models small enough to run on a phone make offline transcription newly possible.",
+  "note": "A real unlock, but the customer and the willingness to pay are both unestablished.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Small models now run on commodity phones",
+      "body": "A quantised model now transcribes faster than real time on a mid-range handset with no network.",
+      "signalType": "technology_unlock",
+      "evidenceClass": "primary",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "Surveyor describes the current process",
+      "body": "We record on a handset and type it up in the evening. Signal is unreliable where we work.",
+      "signalType": "labour",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-2.invalid/item"
+    }
+  ],
+  "expect": {
+    "willingnessToPay": [
+      "insufficient_evidence",
+      "absent",
+      "stated_only"
+    ],
+    "criticalUnknownMentions": [
+      "who",
+      "customer",
+      "pay",
+      "segment"
+    ]
+  }
+}

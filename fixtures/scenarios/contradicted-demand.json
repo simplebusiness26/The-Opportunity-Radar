@@ -1,0 +1,43 @@
+{
+  "key": "contradicted-demand",
+  "title": "Paid newsletter analytics for independent writers",
+  "thesis": "Writers want to understand their readers and would pay for analytics.",
+  "note": "The evidence actively says they will not pay.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Writer states they will not pay for analytics",
+      "body": "I would not pay for this. The platform already shows me opens and that is enough.",
+      "signalType": "demand",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "Platform ships it free",
+      "body": "The hosting platform added the same analytics at no extra cost for every paid plan.",
+      "signalType": "competitor_weakness",
+      "evidenceClass": "primary",
+      "url": "https://source-2.invalid/item"
+    },
+    {
+      "id": "e3",
+      "title": "Second writer says the same",
+      "body": "Nice to have, but I write for two hundred people. What would I do differently?",
+      "signalType": "demand",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-3.invalid/item"
+    }
+  ],
+  "expect": {
+    "willingnessToPay": [
+      "contradicted",
+      "absent"
+    ],
+    "freeAlternativeExpected": true,
+    "redTeamVerdictIn": [
+      "fatal",
+      "serious_but_testable"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "key": "regulatory-deadline",
+  "title": "Compliance reporting for small waste carriers",
+  "thesis": "A reporting rule takes effect next year and small carriers have no tooling for it.",
+  "note": "Timing evidence dominates; demand is implied by a deadline rather than observed.",
+  "evidence": [
+    {
+      "id": "e1",
+      "title": "Regulator publishes the reporting requirement",
+      "body": "From next April, carriers below the current threshold must file quarterly movement records.",
+      "signalType": "regulation",
+      "evidenceClass": "primary",
+      "url": "https://source-1.invalid/item"
+    },
+    {
+      "id": "e2",
+      "title": "Carrier describes the current process",
+      "body": "We keep paper tickets in a box. If we have to file quarterly we will need something.",
+      "signalType": "workaround",
+      "evidenceClass": "direct_customer",
+      "url": "https://source-2.invalid/item"
+    },
+    {
+      "id": "e3",
+      "title": "Trade press notes the absence of tooling",
+      "body": "Existing compliance suites target large operators and start well above what a two-lorry firm would pay.",
+      "signalType": "supply_gap",
+      "evidenceClass": "reliable_secondary",
+      "url": "https://source-3.invalid/item"
+    }
+  ],
+  "expect": {
+    "customerMentions": [
+      "carrier"
+    ],
+    "willingnessToPay": [
+      "stated_only",
+      "insufficient_evidence",
+      "absent"
+    ],
+    "criticalUnknownMentions": [
+      "pay",
+      "price",
+      "cost",
+      "afford"
+    ]
+  }
+}

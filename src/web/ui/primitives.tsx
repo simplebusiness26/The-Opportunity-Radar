@@ -151,9 +151,21 @@ export function Callout({
  * Every seeded row is flagged in the database, and anything derived from one
  * carries this badge. Demonstration data must never be mistakable for evidence.
  */
+/**
+ * Marks seeded sample data.
+ *
+ * Carries an accessible label rather than relying on the uppercase styling: the
+ * DOM text is four characters, and "this is not real evidence" is exactly the
+ * kind of thing a screen reader must not have to infer from a text transform.
+ */
 export function DemoBadge() {
   return (
-    <span className="rounded-sm border border-caution/50 px-1.5 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-caution">
+    <span
+      role="note"
+      aria-label="Demonstration data, not real evidence"
+      title="Demonstration data, not real evidence"
+      className="rounded-sm border border-caution/50 px-1.5 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-caution"
+    >
       Demo
     </span>
   );
