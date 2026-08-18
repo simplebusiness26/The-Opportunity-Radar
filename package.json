@@ -1,0 +1,59 @@
+{
+  "name": "opportunity-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Autonomous opportunity intelligence: external signals + internal capability + execution memory -> where to deploy the next unit of effort.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "db:up": "tsx scripts/db-server.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:reset": "tsx scripts/db-reset.ts",
+    "db:seed": "tsx scripts/seed-demo.ts",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "tsx src/worker/index.ts",
+    "tick": "tsx scripts/tick.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "deps": "depcruise src app --config .dependency-cruiser.cjs",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:eval": "vitest run --project eval",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm run deps && npm run test && npm run test:integration"
+  },
+  "dependencies": {
+    "cron-parser": "^5.10.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.3.1",
+    "pg": "^8.23.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.5",
+    "@electric-sql/pglite-socket": "^0.2.8",
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "~1.56.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dependency-cruiser": "^16.10.4",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.5",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.10"
+  }
+}

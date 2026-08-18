@@ -1,0 +1,60 @@
+@import 'tailwindcss';
+
+/*
+ * Opportunity Radar design language: a serious intelligence terminal.
+ * Dark-first, high-contrast, evidence over ornament. Colour carries meaning
+ * (state, confidence, direction of change) and is never decorative.
+ */
+@theme {
+  --color-ground: oklch(0.16 0.012 250);
+  --color-surface: oklch(0.2 0.014 250);
+  --color-surface-raised: oklch(0.245 0.016 250);
+  --color-line: oklch(0.32 0.018 250);
+  --color-ink: oklch(0.95 0.005 250);
+  --color-ink-muted: oklch(0.72 0.012 250);
+  --color-ink-faint: oklch(0.56 0.014 250);
+
+  --color-accent: oklch(0.72 0.14 220);
+  --color-positive: oklch(0.74 0.15 155);
+  --color-caution: oklch(0.79 0.14 85);
+  --color-negative: oklch(0.66 0.18 25);
+  --color-unknown: oklch(0.6 0.02 250);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Mobile is first-class: never allow the page itself to scroll sideways. */
+    overflow-x: hidden;
+  }
+
+  /* Wide content (tables, charts) scrolls inside its own container. */
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgres://radar:radar@127.0.0.1:5433/postgres
+  RADAR_PUBLIC_URL: http://localhost:3000
+  # Deterministic build: no wall-clock reads reach the engines under test.
+  RADAR_CLOCK: fixed:2026-08-18T00:00:00Z
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate secrets for this run
+        run: |
+          {
+            echo "RADAR_SECRET_KEY=$(openssl rand -base64 32)"
+            echo "RADAR_TICK_TOKEN=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
+      - name: Start embedded database
+        run: |
+          ./scripts/db-restart.sh
+          npm run db:migrate
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Check architectural boundaries
+        run: npm run deps
+      - run: npm run test
+      - run: npm run test:integration
+      - run: npm run test:eval
+      - name: End-to-end acceptance tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /opt/pw-browsers
+        run: |
+          npx playwright install --with-deps chromium
+          RADAR_CHROMIUM="$(node -e "console.log(require('@playwright/test').chromium.executablePath())")" \
+            npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # PGlite and PostgreSQL are the same dialect but not the same engine. This job
+  # runs the identical integration suite against a real server so any divergence
+  # surfaces here rather than in production.
+  verify-real-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: radar
+          POSTGRES_PASSWORD: radar
+          POSTGRES_DB: radar
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://radar:radar@127.0.0.1:5432/radar
+      POSTGRES_TEST_URL: postgres://radar:radar@127.0.0.1:5432/radar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: |
+          {
+            echo "RADAR_SECRET_KEY=$(openssl rand -base64 32)"
+          } >> "$GITHUB_ENV"
+      - name: Install required extensions
+        run: |
+          PGPASSWORD=radar psql -h 127.0.0.1 -U radar -d radar \
+            -c 'CREATE EXTENSION IF NOT EXISTS citext;' \
+            -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm;' \
+            -c 'CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;' \
+            -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
+      - run: npm run db:migrate
+      - run: npm run test:integration
