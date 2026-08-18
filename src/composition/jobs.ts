@@ -1,6 +1,7 @@
 import type { IngestDeps } from '../application/sources/ingest';
+import type { AskDeps } from '../pipeline/ask/answer';
 import type { InvestigationDeps } from '../pipeline/investigations/runner';
-import { deterministicNonce, randomNonce } from '../pipeline/prompts/nonce';
+import { deterministicNonce, randomNonce, type NonceSource } from '../pipeline/prompts/nonce';
 import { aiGateway } from './ai';
 import type { Container } from './container';
 
@@ -32,12 +33,20 @@ export function jobDependencies(c: Container): JobDependencies {
       tx: c.tx,
       clock: c.clock,
       gateway: aiGateway(c),
-      // Fixture replay needs byte-identical prompts between runs; everything
-      // else gets a fresh random nonce per call.
-      nonce:
-        c.env.RADAR_AI_PROVIDER === 'fixture'
-          ? deterministicNonce('radar-fixture')
-          : randomNonce(),
+      nonce: promptNonce(c),
     },
   };
+}
+
+/**
+ * Fixture replay needs byte-identical prompts between runs, because a
+ * recording is keyed by the prompt's hash. Everything else gets a fresh random
+ * nonce per call.
+ */
+export function promptNonce(c: Container): NonceSource {
+  return c.env.RADAR_AI_PROVIDER === 'fixture' ? deterministicNonce('radar-fixture') : randomNonce();
+}
+
+export function askDependencies(c: Container): AskDeps {
+  return { repos: c.repos, clock: c.clock, gateway: aiGateway(c), nonce: promptNonce(c) };
 }

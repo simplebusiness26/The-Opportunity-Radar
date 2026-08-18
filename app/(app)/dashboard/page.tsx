@@ -3,6 +3,7 @@ import { buildDashboard } from '../../../src/application/system/dashboard';
 import { MODE_DESCRIPTIONS } from '../../../src/domain/config/mode';
 import { readModeStatus } from '../../../src/application/system/mode';
 import { Callout, EmptyState, Panel, PanelHeader } from '../../../src/web/ui/primitives';
+import { readOnboarding } from '../../../src/application/system/onboarding';
 import { DeltaBadge, ScorePair, StateChip } from '../../../src/web/ui/score';
 import { requireWorkspacePage } from '../../../src/web/http/context';
 import { container } from '../../../src/composition/container';
@@ -14,9 +15,10 @@ export default async function DashboardPage() {
   const c = container();
 
   const since = new Date(c.clock.epochMs() - 7 * 86_400_000);
-  const [view, mode] = await Promise.all([
+  const [view, mode, onboarding] = await Promise.all([
     buildDashboard(c.repos, ctx.workspaceId, since),
     readModeStatus(c.repos, ctx.workspaceId),
+    readOnboarding(c.repos, ctx.workspaceId),
   ]);
 
   const best = view.bestMove;
@@ -29,6 +31,16 @@ export default async function DashboardPage() {
           What deserves attention, why, and what changed.
         </p>
       </div>
+
+      {!onboarding.ready && onboarding.next ? (
+        <Callout tone="caution" title={`Radar is judging with half the picture: ${onboarding.next.title.toLowerCase()}`}>
+          {onboarding.next.why}{' '}
+          <a href="/onboarding" className="underline">
+            Finish setting up
+          </a>
+          .
+        </Callout>
+      ) : null}
 
       <Panel className="p-4">
         <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-ink-faint">

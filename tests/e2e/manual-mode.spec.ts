@@ -175,3 +175,53 @@ test('investigation says it needs a provider rather than pretending', async ({ p
   await expect(page.getByText('Investigation needs an AI provider')).toBeVisible();
   await expect(page.getByText('No AI provider is connected, so nothing can be investigated')).toBeVisible();
 });
+
+test('Ask Radar searches the workspace and does not pretend to answer', async ({ page }) => {
+  await signUpFresh(page, 'Ask Without AI');
+
+  await recordEvidence(page, {
+    title: 'Restaurant pays for booking software that cannot take deposits',
+    body: 'We pay 180 a month for our booking system and it still cannot take a deposit, so we lose covers every weekend to no-shows.',
+    type: 'spending',
+    evidence: 'direct_customer',
+    source: "Interview with Bella's",
+    monthly: '180',
+  });
+
+  await page.goto('/ask');
+  await page.getByLabel('Your question').fill('What do restaurants pay for booking software?');
+  await page.getByRole('button', { name: 'Ask' }).click();
+
+  // No provider, so it returns the records rather than composing prose, and
+  // says which of the two it is doing.
+  await expect(page.getByText('No answer was composed')).toBeVisible();
+  await expect(page.getByText('Restaurant pays for booking software')).toBeVisible();
+});
+
+test('Ask Radar refuses a question the workspace has no records about', async ({ page }) => {
+  await signUpFresh(page, 'Ask Out Of Scope');
+
+  await page.goto('/ask');
+  await page
+    .getByLabel('Your question')
+    .fill('What are the current shipping tariffs between Chile and Norway?');
+  await page.getByRole('button', { name: 'Ask' }).click();
+
+  await expect(page.getByText('no records')).toBeVisible();
+  await expect(page.getByText('Nothing in this workspace matched')).toBeVisible();
+});
+
+test('setting up says what is missing and why it matters', async ({ page }) => {
+  await signUpFresh(page, 'Setup Checklist');
+
+  await expect(page.getByText('Radar is judging with half the picture')).toBeVisible();
+
+  await page.goto('/onboarding');
+  await expect(
+    page.getByRole('link', { name: 'Record what you can already build' }),
+  ).toBeVisible();
+  await expect(page.getByText('Nothing recorded, so fit and leverage cannot be scored at all.')).toBeVisible();
+
+  // Connecting AI is genuinely optional and must be labelled as such.
+  await expect(page.getByText('optional').first()).toBeVisible();
+});

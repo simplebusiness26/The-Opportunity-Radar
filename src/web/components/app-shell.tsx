@@ -23,10 +23,12 @@ const NAV = [
   { href: '/portfolio', label: 'Portfolio', short: 'Effort', primary: true },
   { href: '/clusters', label: 'Problems', short: 'Problems', primary: true },
   { href: '/signals', label: 'Signals', short: 'Signals', primary: true },
+  { href: '/ask', label: 'Ask Radar', short: 'Ask', primary: false },
   { href: '/brief', label: 'Brief', short: 'Brief', primary: false },
   { href: '/intelligence', label: 'Our capability', short: 'Us', primary: false },
   { href: '/sources', label: 'Sources', short: 'Sources', primary: false },
   { href: '/system', label: 'Machine', short: 'Machine', primary: false },
+  { href: '/onboarding', label: 'Setting up', short: 'Setup', primary: false },
 ] as const;
 
 const MOBILE_NAV = NAV.filter((item) => item.primary);
