@@ -148,6 +148,23 @@ export interface OpportunityRepository {
   detachEvidence(opportunityId: string, evidenceUnitId: string, stance: 'for' | 'against'): Promise<void>;
   evidenceFor(opportunityId: string): Promise<Array<{ evidenceUnitId: string; stance: 'for' | 'against'; weight: number; note: string | null }>>;
   nextReference(workspaceId: string): Promise<number>;
+
+  /** What this opportunity would need built. */
+  capabilityRequirements(opportunityId: string): Promise<CapabilityRequirementRow[]>;
+  setCapabilityRequirements(
+    workspaceId: string,
+    opportunityId: string,
+    requirements: Array<{ label: string; taxonomyKey: string | null; criticality: CapabilityRequirementRow['criticality']; resolvedBy: string }>,
+  ): Promise<void>;
+}
+
+export interface CapabilityRequirementRow {
+  id: string;
+  opportunityId: string;
+  label: string;
+  taxonomyKey: string | null;
+  criticality: 'nice_to_have' | 'important' | 'essential';
+  resolvedBy: string;
 }
 
 export interface ScoreRow {

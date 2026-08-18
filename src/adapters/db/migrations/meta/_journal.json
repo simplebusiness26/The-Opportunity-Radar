@@ -29,6 +29,20 @@
       "when": 1787077553238,
       "tag": "0003_ops",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787078850547,
+      "tag": "0004_intelligence_graph",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787079316284,
+      "tag": "0005_capability_requirements",
+      "breakpoints": true
     }
   ]
 }

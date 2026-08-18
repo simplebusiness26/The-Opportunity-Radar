@@ -9,3 +9,4 @@ export * from './audit';
 export * from './intelligence';
 export * from './opportunities';
 export * from './ops';
+export * from './graph';

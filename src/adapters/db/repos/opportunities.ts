@@ -9,12 +9,14 @@ import {
   signalEntities,
   opportunities,
   opportunityEvidence,
+  opportunityCapabilityRequirements,
   opportunityStateTransitions,
   scoreDeltas,
   scoreWeightProfiles,
   scores,
 } from '../schema/index';
 import type {
+  CapabilityRequirementRow,
   ClusterRepository,
   ClusterRow,
   DecisionRepository,
@@ -203,6 +205,43 @@ export function createOpportunityRepository(db: Executor): OpportunityRepository
     ({ ...row, notes: (row.notes ?? {}) as Record<string, unknown> }) as OpportunityRow;
 
   return {
+    async capabilityRequirements(opportunityId) {
+      return db
+        .select({
+          id: opportunityCapabilityRequirements.id,
+          opportunityId: opportunityCapabilityRequirements.opportunityId,
+          label: opportunityCapabilityRequirements.label,
+          taxonomyKey: opportunityCapabilityRequirements.taxonomyKey,
+          criticality: opportunityCapabilityRequirements.criticality,
+          resolvedBy: opportunityCapabilityRequirements.resolvedBy,
+        })
+        .from(opportunityCapabilityRequirements)
+        .where(eq(opportunityCapabilityRequirements.opportunityId, opportunityId)) as unknown as Promise<
+        CapabilityRequirementRow[]
+      >;
+    },
+
+    async setCapabilityRequirements(workspaceId, opportunityId, requirements) {
+      // Replaced wholesale rather than merged: the set of things an opportunity
+      // needs is a statement about it, not an accumulation of edits.
+      await db
+        .delete(opportunityCapabilityRequirements)
+        .where(eq(opportunityCapabilityRequirements.opportunityId, opportunityId));
+
+      if (requirements.length === 0) return;
+
+      await db.insert(opportunityCapabilityRequirements).values(
+        requirements.map((requirement) => ({
+          workspaceId,
+          opportunityId,
+          label: requirement.label,
+          taxonomyKey: requirement.taxonomyKey,
+          criticality: requirement.criticality,
+          resolvedBy: requirement.resolvedBy,
+        })),
+      );
+    },
+
     async nextReference(workspaceId) {
       // Human-facing reference numbers are per workspace and start at 1, so the
       // owner can say "opportunity 27" and mean something stable.

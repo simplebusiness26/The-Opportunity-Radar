@@ -1,4 +1,5 @@
 import type { AuditRepository } from './audit';
+import type { ExecutionHistoryRepository, GraphRepository } from './graph';
 import type {
   AlertRepository,
   BriefRepository,
@@ -45,6 +46,8 @@ export interface Repositories {
   briefs: BriefRepository;
   visits: VisitRepository;
   runStats: RunStatsRepository;
+  graph: GraphRepository;
+  executionHistory: ExecutionHistoryRepository;
 
   /**
    * Introduced with the AI and ingestion layers. Optional here so that code
@@ -73,3 +76,5 @@ export * from './intelligence';
 export * from './opportunities';
 
 export * from './ops';
+
+export * from './graph';

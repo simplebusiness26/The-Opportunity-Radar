@@ -9,15 +9,26 @@ import { cx } from '../ui/primitives';
  * meant to be operated one-handed from a phone, so the primary destinations sit
  * within thumb reach rather than behind a hamburger.
  */
+/**
+ * Destinations, split by how they are reached.
+ *
+ * The bottom bar is capped at five: a phone bar with eight targets is a bar
+ * nobody hits accurately, and the sixth item silently wrapping to a second row
+ * is how it broke once already. Everything else is one tap away in the sidebar
+ * on a wide screen, and from the dashboard's own links on a phone.
+ */
 const NAV = [
-  { href: '/dashboard', label: 'Radar', short: 'Radar' },
-  { href: '/brief', label: 'Brief', short: 'Brief' },
-  { href: '/opportunities', label: 'Opportunities', short: 'Opps' },
-  { href: '/clusters', label: 'Problems', short: 'Problems' },
-  { href: '/signals', label: 'Signals', short: 'Signals' },
-  { href: '/intelligence', label: 'Our capability', short: 'Us' },
-  { href: '/system', label: 'Machine', short: 'Machine' },
+  { href: '/dashboard', label: 'Radar', short: 'Radar', primary: true },
+  { href: '/opportunities', label: 'Opportunities', short: 'Opps', primary: true },
+  { href: '/portfolio', label: 'Portfolio', short: 'Effort', primary: true },
+  { href: '/clusters', label: 'Problems', short: 'Problems', primary: true },
+  { href: '/signals', label: 'Signals', short: 'Signals', primary: true },
+  { href: '/brief', label: 'Brief', short: 'Brief', primary: false },
+  { href: '/intelligence', label: 'Our capability', short: 'Us', primary: false },
+  { href: '/system', label: 'Machine', short: 'Machine', primary: false },
 ] as const;
+
+const MOBILE_NAV = NAV.filter((item) => item.primary);
 
 export function AppShell({
   children,
@@ -78,10 +89,10 @@ export function AppShell({
         */}
         <nav
           aria-label="Primary"
-          style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${MOBILE_NAV.length}, minmax(0, 1fr))` }}
           className="fixed inset-x-0 bottom-0 z-10 grid border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         >
-          {NAV.map((item) => (
+          {MOBILE_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}

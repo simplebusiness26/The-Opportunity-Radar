@@ -219,6 +219,42 @@ export const scoreWeightProfiles = pgTable(
   ],
 );
 
+export const criticalityEnum = pgEnum('capability_criticality', [
+  'nice_to_have',
+  'important',
+  'essential',
+]);
+
+/**
+ * What an opportunity would need to be built.
+ *
+ * Stored against a taxonomy key wherever the wording resolves, so it can be
+ * compared with what the team already has as keys rather than as strings. An
+ * unresolved requirement keeps its label and is reported as a gap.
+ */
+export const opportunityCapabilityRequirements = pgTable(
+  'opportunity_capability_requirements',
+  {
+    id: pk(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    opportunityId: uuid('opportunity_id')
+      .notNull()
+      .references(() => opportunities.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    taxonomyKey: text('taxonomy_key'),
+    criticality: criticalityEnum('criticality').notNull().default('important'),
+    /** How the free text was matched, so certainty is never overstated. */
+    resolvedBy: text('resolved_by').notNull().default('unresolved'),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('opportunity_capability_unique').on(table.opportunityId, table.label),
+    index('opportunity_capability_key_idx').on(table.workspaceId, table.taxonomyKey),
+  ],
+);
+
 export const scores = pgTable(
   'scores',
   {

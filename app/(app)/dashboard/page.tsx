@@ -161,6 +161,25 @@ export default async function DashboardPage() {
               </Callout>
             </div>
           ) : null}
+
+          {/*
+            The bottom bar on a phone holds five destinations; these are the
+            rest, so nothing is reachable only on a wide screen.
+          */}
+          <nav aria-label="More" className="mt-4 flex flex-wrap gap-x-4 gap-y-2 md:hidden">
+            {(
+              [
+                { href: '/brief', label: 'Daily brief' },
+                { href: '/intelligence', label: 'Our capability' },
+                { href: '/system', label: 'Machine' },
+                { href: '/settings', label: 'Settings' },
+              ] as const
+            ).map((item) => (
+              <Link key={item.href} href={item.href} className="text-sm text-accent hover:underline">
+                {item.label} →
+              </Link>
+            ))}
+          </nav>
         </div>
       </Panel>
     </div>
