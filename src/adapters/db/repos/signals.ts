@@ -22,6 +22,7 @@ import type {
 } from '../../../ports/repositories/intelligence';
 import { clusterMembers } from '../schema/index';
 import { slugify } from '../../../domain/text/slug';
+import type { SignalTypeKey } from '../../../domain/taxonomy/signal-types';
 
 type Row = typeof signals.$inferSelect;
 
@@ -337,6 +338,9 @@ export function createEvidenceRepository(db: Executor): EvidenceRepository {
           id: evidenceUnits.id,
           claimText: evidenceUnits.canonicalClaim,
           evidenceClass: evidenceUnits.evidenceClass,
+          signalTypeKey: evidenceUnits.signalTypeKey,
+          supersededAt: signals.supersededAt,
+          halfLifeDaysOverride: signals.halfLifeDaysOverride,
           mentionCount: evidenceUnits.mentionCount,
           firstSeenAt: evidenceUnits.firstSeenAt,
           lastSeenAt: evidenceUnits.lastSeenAt,
@@ -399,6 +403,9 @@ export function createEvidenceRepository(db: Executor): EvidenceRepository {
           embeddingModel: unit.embeddingModel,
           entityKeys: [...(entitiesBy.get(unit.id) ?? [])],
           evidenceClass: unit.evidenceClass,
+          signalTypeKey: unit.signalTypeKey as SignalTypeKey,
+          supersededAt: unit.supersededAt ?? null,
+          halfLifeDaysOverride: unit.halfLifeDaysOverride ?? null,
           originKeys: [...(originsBy.get(unit.id) ?? [])],
           mentionCount: unit.mentionCount,
           firstSeenAt: unit.firstSeenAt,

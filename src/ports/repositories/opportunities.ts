@@ -194,8 +194,22 @@ export interface ScoreRepository {
     workspaceId: string,
     since: Date,
     limit?: number,
-  ): Promise<Array<{ opportunityId: string; composite: string; fromValue: number | null; toValue: number | null; delta: number; topDrivers: unknown; cause: string; createdAt: Date }>>;
+  ): Promise<ScoreDeltaRow[]>;
   activeWeights(workspaceId: string): Promise<{ profileId: string | null; weights: Record<string, number> }>;
+}
+
+export interface ScoreDeltaRow {
+  id: string;
+  opportunityId: string;
+  toScoreId: string;
+  composite: string;
+  fromValue: number | null;
+  toValue: number | null;
+  delta: number;
+  /** The dimensions that moved most, already ranked. */
+  topDrivers: Array<{ key: string; label: string; delta: number }>;
+  cause: string;
+  createdAt: Date;
 }
 
 export interface DecisionRepository {

@@ -11,6 +11,7 @@ import { cx } from '../ui/primitives';
  */
 const NAV = [
   { href: '/dashboard', label: 'Radar', short: 'Radar' },
+  { href: '/brief', label: 'Brief', short: 'Brief' },
   { href: '/opportunities', label: 'Opportunities', short: 'Opps' },
   { href: '/clusters', label: 'Problems', short: 'Problems' },
   { href: '/signals', label: 'Signals', short: 'Signals' },

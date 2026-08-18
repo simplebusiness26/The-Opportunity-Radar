@@ -1,5 +1,14 @@
 import type { AuditRepository } from './audit';
 import type {
+  AlertRepository,
+  BriefRepository,
+  DomainEventRepository,
+  JobRepository,
+  RunStatsRepository,
+  ScheduleRepository,
+  VisitRepository,
+} from './ops';
+import type {
   EntityRepository,
   EvidenceRepository,
   SignalRepository,
@@ -29,6 +38,13 @@ export interface Repositories {
   opportunities: OpportunityRepository;
   scores: ScoreRepository;
   decisions: DecisionRepository;
+  jobs: JobRepository;
+  schedules: ScheduleRepository;
+  events: DomainEventRepository;
+  alerts: AlertRepository;
+  briefs: BriefRepository;
+  visits: VisitRepository;
+  runStats: RunStatsRepository;
 
   /**
    * Introduced with the AI and ingestion layers. Optional here so that code
@@ -37,7 +53,6 @@ export interface Repositories {
    */
   aiProviders?: CountableRepository;
   sources?: CountableRepository;
-  schedules?: CountableRepository;
 }
 
 export interface CountableRepository {
@@ -56,3 +71,5 @@ export * from './audit';
 export * from './auth';
 export * from './intelligence';
 export * from './opportunities';
+
+export * from './ops';

@@ -2,6 +2,15 @@ import type { Repositories, Transactor } from '../../../ports/repositories/index
 import type { Database } from '../client';
 import type { Executor } from './_ctx';
 import { createAuditRepository } from './audit';
+import {
+  createAlertRepository,
+  createBriefRepository,
+  createDomainEventRepository,
+  createJobRepository,
+  createRunStatsRepository,
+  createScheduleRepository,
+  createVisitRepository,
+} from './ops';
 import { createTenancyRepository } from './tenancy';
 import {
   createEntityRepository,
@@ -30,6 +39,13 @@ export function createRepositories(db: Executor): Repositories {
     opportunities: createOpportunityRepository(db),
     scores: createScoreRepository(db),
     decisions: createDecisionRepository(db),
+    jobs: createJobRepository(db),
+    schedules: createScheduleRepository(db),
+    events: createDomainEventRepository(db),
+    alerts: createAlertRepository(db),
+    briefs: createBriefRepository(db),
+    visits: createVisitRepository(db),
+    runStats: createRunStatsRepository(db),
   };
 }
 

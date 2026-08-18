@@ -171,6 +171,10 @@ export interface ClusterableEvidenceRow {
   embeddingModel: string | null;
   entityKeys: string[];
   evidenceClass: EvidenceClass;
+  signalTypeKey: SignalTypeKey;
+  /** Set when the underlying claim has been superseded; stops time decay. */
+  supersededAt: Date | null;
+  halfLifeDaysOverride: number | null;
   originKeys: string[];
   mentionCount: number;
   firstSeenAt: Date;

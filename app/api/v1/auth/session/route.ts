@@ -36,7 +36,9 @@ export async function GET(request: NextRequest) {
       activeWorkspaceId: ctx?.workspaceId ?? null,
       role: ctx?.role ?? null,
       permissions: ctx ? [...permissionsFor(ctx.role)] : [],
-      mode: await readModeStatus(c.repos),
+      // An account with no workspace yet has no mode to report; it is still in
+      // setup rather than in manual mode.
+      mode: ctx ? await readModeStatus(c.repos, ctx.workspaceId) : null,
     });
   } catch (error) {
     return apiError(error, request.headers.get('x-request-id') ?? undefined);

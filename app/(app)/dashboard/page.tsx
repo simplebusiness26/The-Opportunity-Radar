@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const since = new Date(c.clock.epochMs() - 7 * 86_400_000);
   const [view, mode] = await Promise.all([
     buildDashboard(c.repos, ctx.workspaceId, since),
-    readModeStatus(c.repos),
+    readModeStatus(c.repos, ctx.workspaceId),
   ]);
 
   const best = view.bestMove;

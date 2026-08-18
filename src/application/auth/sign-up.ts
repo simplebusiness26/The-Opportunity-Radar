@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { errors } from '../../domain/types/errors';
 import { slugify } from '../../domain/text/slug';
+import { installDefaultSchedules } from '../system/default-schedules';
 import type { AuthDeps, RequestMeta, SessionIssue } from './types';
 import { SESSION_TTL_MS } from './types';
 
@@ -113,6 +114,11 @@ export async function signUp(
     );
 
     await repos.users.markSignedIn(user.id, now);
+
+    // The machine is scheduled from day one. Every default schedule is harmless
+    // on an empty workspace: with nothing connected, the scans find nothing and
+    // the brief reports that nothing changed.
+    await installDefaultSchedules(repos, workspace.id);
 
     return { userId: user.id, workspaceId: workspace.id };
   });

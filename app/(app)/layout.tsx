@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!session) redirect('/sign-in');
   if (!ctx) redirect('/setup');
 
-  const mode = await readModeStatus(container().repos);
+  const mode = await readModeStatus(container().repos, ctx.workspaceId);
   const workspace = session.memberships.find((m) => m.workspaceId === ctx.workspaceId);
 
   return (

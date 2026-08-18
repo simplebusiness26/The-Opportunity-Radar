@@ -49,6 +49,21 @@ export default tseslint.config(
     },
   },
   {
+    // Standalone Node scripts at the repository root (tooling bridges and the
+    // like) run with the Node globals rather than the app's module graph.
+    files: ['*.mjs'],
+    ignores: ['eslint.config.mjs'],
+    languageOptions: {
+      globals: {
+        fetch: 'readonly',
+        URL: 'readonly',
+        AbortController: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
+  },
+  {
     // The service worker runs in a worker global scope, not a page.
     files: ['public/sw.js'],
     languageOptions: {
@@ -57,6 +72,7 @@ export default tseslint.config(
         self: 'readonly',
         caches: 'readonly',
         fetch: 'readonly',
+        clients: 'readonly',
         Response: 'readonly',
         URL: 'readonly',
       },

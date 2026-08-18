@@ -4,14 +4,18 @@ import type { Repositories } from '../../ports/repositories/index';
 /**
  * Gathers the real counts behind the operating mode.
  *
- * The provider, source and schedule repositories are introduced with the AI and
- * ingestion layers; until they exist the counts are genuinely zero, so a fresh
- * installation correctly reports MANUAL rather than pretending otherwise.
+ * The mode is derived from what is actually connected, never declared. The
+ * provider and source repositories arrive with the AI and ingestion layers;
+ * until then their counts are genuinely zero, so a fresh installation reports
+ * MANUAL because it is manual, not because a flag says so.
  */
-export async function readModeStatus(repos: Repositories): Promise<ModeStatus> {
+export async function readModeStatus(
+  repos: Repositories,
+  workspaceId: string,
+): Promise<ModeStatus> {
   const enabledProviders = repos.aiProviders ? await repos.aiProviders.countEnabled() : 0;
   const enabledSources = repos.sources ? await repos.sources.countEnabled() : 0;
-  const enabledSchedules = repos.schedules ? await repos.schedules.countEnabled() : 0;
+  const enabledSchedules = await repos.schedules.countEnabled(workspaceId);
 
   return deriveMode({ enabledProviders, enabledSources, enabledSchedules });
 }

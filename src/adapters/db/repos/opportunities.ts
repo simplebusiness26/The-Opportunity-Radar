@@ -20,6 +20,7 @@ import type {
   DecisionRepository,
   OpportunityRepository,
   OpportunityRow,
+  ScoreDeltaRow,
   ScoreRepository,
   ScoreRow,
 } from '../../../ports/repositories/opportunities';
@@ -467,16 +468,20 @@ export function createScoreRepository(db: Executor): ScoreRepository {
         .where(and(eq(scoreDeltas.workspaceId, workspaceId), gte(scoreDeltas.createdAt, since)))
         .orderBy(desc(scoreDeltas.createdAt))
         .limit(limit);
-      return rows.map((row) => ({
-        opportunityId: row.opportunityId,
-        composite: row.composite,
-        fromValue: row.fromValue,
-        toValue: row.toValue,
-        delta: row.delta,
-        topDrivers: row.topDrivers,
-        cause: row.cause,
-        createdAt: row.createdAt,
-      }));
+      return rows.map(
+        (row): ScoreDeltaRow => ({
+          id: row.id,
+          opportunityId: row.opportunityId,
+          toScoreId: row.toScoreId,
+          composite: row.composite,
+          fromValue: row.fromValue,
+          toValue: row.toValue,
+          delta: row.delta,
+          topDrivers: (row.topDrivers ?? []) as ScoreDeltaRow['topDrivers'],
+          cause: row.cause,
+          createdAt: row.createdAt,
+        }),
+      );
     },
 
     async activeWeights(workspaceId) {
