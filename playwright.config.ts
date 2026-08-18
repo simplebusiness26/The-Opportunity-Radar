@@ -41,7 +41,10 @@ locale: 'en-GB',
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
     env: {
-      RADAR_CLOCK: 'fixed:2026-08-18T00:00:00Z',
+      // Starts at a known instant and then moves at real speed. A frozen clock
+      // would make "this arrived after that" inexpressible, and several
+      // behaviours worth testing are exactly that.
+      RADAR_CLOCK: 'from:2026-08-18T00:00:00Z',
       RADAR_E2E: '1',
       // Origin verification compares against this exact value, so it has to be
       // the address the tests actually browse.
@@ -52,6 +55,11 @@ locale: 'en-GB',
       // The suite creates several accounts in quick succession from one
       // address, which the production limits would rightly refuse.
       RADAR_RATE_LIMIT_SCALE: '200',
+      // The acceptance tests drive the machine the way a scheduler does,
+      // rather than sleeping and hoping. Fixed here so the specs and the
+      // server agree on the token without one being configured by hand.
+      RADAR_TICK_TOKEN: 'e2e-tick-token-not-a-secret',
+      RADAR_FEEDBACK_TOKEN: 'e2e-feedback-token-not-a-secret',
     },
   },
 });

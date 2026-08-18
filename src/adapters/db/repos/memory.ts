@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Executor } from './_ctx';
 import { opportunities, opportunityRelationships, reevaluationTriggers } from '../schema/index';
 import type {
@@ -12,7 +12,7 @@ import type { TriggerPredicate } from '../../../domain/memory/triggers';
 
 export function createTriggerRepository(db: Executor): TriggerRepository {
   return {
-    async create(workspaceId, input) {
+    async create(workspaceId, input, now) {
       const [row] = await db
         .insert(reevaluationTriggers)
         .values({
@@ -21,6 +21,11 @@ export function createTriggerRepository(db: Executor): TriggerRepository {
           kind: input.kind,
           description: input.description,
           predicate: input.predicate,
+          // From the injected clock rather than the database default: a
+          // trigger's arming time is compared against evidence timestamps that
+          // come from the clock, and two sources of "now" would make the
+          // comparison meaningless.
+          createdAt: now,
         })
         .returning();
       if (!row) throw new Error('create trigger returned no row');
@@ -49,7 +54,7 @@ export function createTriggerRepository(db: Executor): TriggerRepository {
           and(
             eq(reevaluationTriggers.workspaceId, workspaceId),
             eq(reevaluationTriggers.active, true),
-            sql`${reevaluationTriggers.firedAt} is null`,
+            isNull(reevaluationTriggers.firedAt),
           ),
         )
         .limit(limit);

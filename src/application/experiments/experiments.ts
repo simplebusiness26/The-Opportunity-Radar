@@ -379,3 +379,112 @@ export async function readExperiment(
 
   return { experiment, state: EXPERIMENT_STATES[experiment.state], results, contacts, plan };
 }
+
+export const writePlanInput = z.object({
+  hypothesis: z.string().trim().min(10, 'State what you believe and will test.').max(600),
+  whyItMatters: z.string().trim().min(5).max(600),
+  experimentType: z.enum([
+    'customer_interview',
+    'landing_page',
+    'concierge',
+    'fake_door',
+    'pre_sale',
+    'outbound_outreach',
+    'prototype_demo',
+    'pricing_test',
+    'desk_research',
+  ]),
+  audience: z.string().trim().min(3).max(400),
+  steps: z.array(z.string().trim().min(1).max(400)).min(1).max(12),
+  estimatedCost: z.number().min(0).max(100_000).default(0),
+  estimatedDays: z.number().min(0.5).max(90).default(5),
+  successThreshold: z.object({
+    description: z.string().trim().min(3).max(400),
+    metric: z.string().trim().min(1).max(120),
+    value: z.number(),
+  }),
+  failureThreshold: z.object({
+    description: z.string().trim().min(3).max(400),
+    metric: z.string().trim().min(1).max(120),
+    value: z.number(),
+  }),
+  evidenceToCollect: z.array(z.string().trim().min(1).max(300)).max(10).default([]),
+  doNotBuildYet: z.array(z.string().trim().min(1).max(300)).max(12).default([]),
+});
+
+/**
+ * A validation plan written by a person.
+ *
+ * The AI role designs one when a provider is connected, but designing an
+ * experiment is not something Radar should need a model for. Without this,
+ * manual mode could investigate and score but never actually test anything,
+ * which would make the whole validation half of the product conditional on a
+ * credential.
+ *
+ * The thresholds are fixed here, before the experiment runs, for the same
+ * reason they are when a model writes them.
+ */
+export async function writeValidationPlan(
+  deps: ExperimentDeps,
+  ctx: ActorCtx,
+  opportunityId: string,
+  input: z.infer<typeof writePlanInput>,
+): Promise<{ planId: string }> {
+  if (!can(ctx, 'experiments.write')) {
+    throw errors.forbidden('experiments.write_denied', 'Your role cannot design experiments.');
+  }
+  const parsed = writePlanInput.parse(input);
+
+  const opportunity = await deps.repos.opportunities.findById(ctx.workspaceId, opportunityId);
+  if (!opportunity) throw errors.notFound('Opportunity');
+
+  if (parsed.successThreshold.metric === parsed.failureThreshold.metric &&
+      parsed.failureThreshold.value >= parsed.successThreshold.value) {
+    // Otherwise every result is simultaneously a success and a failure, and
+    // the verdict becomes whatever the reader wants it to be.
+    throw errors.preconditionFailed(
+      'plan.thresholds_overlap',
+      'The failure threshold is at or above the success threshold on the same metric.',
+      'Set them apart, so a result can only mean one thing.',
+    );
+  }
+
+  const plan = await deps.repos.validation.savePlan(ctx.workspaceId, opportunityId, {
+    hypothesis: parsed.hypothesis,
+    whyItMatters: parsed.whyItMatters,
+    experimentType: parsed.experimentType,
+    audience: parsed.audience,
+    steps: parsed.steps,
+    estimatedCost: parsed.estimatedCost,
+    estimatedDays: parsed.estimatedDays,
+    successThreshold: parsed.successThreshold,
+    failureThreshold: parsed.failureThreshold,
+    evidenceToCollect: parsed.evidenceToCollect,
+    doNotBuildYet: parsed.doNotBuildYet,
+    createdByUserId: actorUserId(ctx),
+  });
+
+  // The same promotion the AI validation role performs, so manual mode and
+  // assisted mode move an opportunity through the lifecycle identically.
+  if (opportunity.state === 'candidate') {
+    const now = deps.clock.now();
+    await deps.repos.opportunities.setState(opportunityId, 'validation_ready', now);
+    await deps.repos.opportunities.recordTransition({
+      opportunityId,
+      fromState: opportunity.state,
+      toState: 'validation_ready',
+      reason: `An experiment has been designed: ${parsed.hypothesis}`.slice(0, 2000),
+      actorKind: actorKind(ctx),
+      actorUserId: actorUserId(ctx),
+    });
+  }
+
+  await deps.repos.audit.record(ctx, {
+    action: 'validation_plan.written',
+    entityType: 'opportunity',
+    entityId: opportunityId,
+    after: { planId: plan.id, hypothesis: parsed.hypothesis },
+  });
+
+  return { planId: plan.id };
+}

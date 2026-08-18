@@ -72,12 +72,11 @@ export async function createTrigger(
     );
   }
 
-  const trigger = await deps.repos.triggers.create(ctx.workspaceId, {
-    opportunityId,
-    kind: parsed.kind,
-    description: parsed.description,
-    predicate,
-  });
+  const trigger = await deps.repos.triggers.create(
+    ctx.workspaceId,
+    { opportunityId, kind: parsed.kind, description: parsed.description, predicate },
+    deps.clock.now(),
+  );
 
   await deps.repos.audit.record(ctx, {
     action: 'trigger.created',

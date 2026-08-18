@@ -26,12 +26,53 @@ import type {
   VisitRepository,
 } from '../../../ports/repositories/ops';
 
-function toJob(row: typeof jobs.$inferSelect): JobRow {
+/**
+ * Maps a job row, from either shape it can arrive in.
+ *
+ * Drizzle's query builder returns camelCase keys; a raw `db.execute` -- which
+ * the claim needs for `FOR UPDATE SKIP LOCKED` -- returns the database's own
+ * snake_case. Reading only the camelCase names silently produced jobs whose
+ * `workspaceId` was undefined, so every handler that scoped work by workspace
+ * quietly did nothing and reported success. Both shapes are read here so the
+ * two paths cannot diverge again.
+ */
+function toJob(row: Record<string, unknown>): JobRow {
+  const pick = <T>(camel: string, snake: string): T => (row[camel] ?? row[snake]) as T;
+
+  // Raw SQL also returns timestamps as strings rather than Dates, and a string
+  // where a Date is declared survives every type check and then compares
+  // wrongly at runtime.
+  const date = (camel: string, snake: string): Date | null => {
+    const value = row[camel] ?? row[snake];
+    if (value === null || value === undefined) return null;
+    return value instanceof Date ? value : new Date(String(value));
+  };
+
   return {
-    ...row,
-    payload: (row.payload ?? {}) as Record<string, unknown>,
-    checkpoint: (row.checkpoint ?? null) as Record<string, unknown> | null,
-  } as JobRow;
+    id: pick<string>('id', 'id'),
+    workspaceId: pick<string>('workspaceId', 'workspace_id'),
+    kind: pick<string>('kind', 'kind'),
+    payload: (pick<Record<string, unknown>>('payload', 'payload') ?? {}) as Record<string, unknown>,
+    dedupeKey: pick<string | null>('dedupeKey', 'dedupe_key') ?? null,
+    status: pick<JobRow['status']>('status', 'status'),
+    priority: Number(pick<number>('priority', 'priority') ?? 0),
+    runAt: date('runAt', 'run_at')!,
+    startedAt: date('startedAt', 'started_at'),
+    finishedAt: date('finishedAt', 'finished_at'),
+    attempts: Number(pick<number>('attempts', 'attempts') ?? 0),
+    maxAttempts: Number(pick<number>('maxAttempts', 'max_attempts') ?? 5),
+    timeoutSec: Number(pick<number>('timeoutSec', 'timeout_sec') ?? 300),
+    leaseExpiresAt: date('leaseExpiresAt', 'lease_expires_at'),
+    workerId: pick<string | null>('workerId', 'worker_id') ?? null,
+    lastError: pick<string | null>('lastError', 'last_error') ?? null,
+    checkpoint: (pick<Record<string, unknown> | null>('checkpoint', 'checkpoint') ?? null) as
+      | Record<string, unknown>
+      | null,
+    parentJobId: pick<string | null>('parentJobId', 'parent_job_id') ?? null,
+    runId: pick<string | null>('runId', 'run_id') ?? null,
+    causationDepth: Number(pick<number>('causationDepth', 'causation_depth') ?? 0),
+    createdAt: date('createdAt', 'created_at')!,
+  };
 }
 
 export function createJobRepository(db: Executor): JobRepository {
@@ -71,7 +112,7 @@ export function createJobRepository(db: Executor): JobRepository {
        * rather than blocking, so the queue scales by adding workers and needs no
        * external coordination.
        */
-      const result = await db.execute<typeof jobs.$inferSelect>(sql`
+      const result = await db.execute<Record<string, unknown>>(sql`
         update ${jobs} set
           status = 'running',
           worker_id = ${workerId},

@@ -25,6 +25,7 @@ export interface TriggerRepository {
       description: string;
       predicate: TriggerPredicate;
     },
+    now: Date,
   ): Promise<TriggerRow>;
   listFor(workspaceId: string, opportunityId: string): Promise<TriggerRow[]>;
   /** Every armed trigger in the workspace, for evaluating new evidence against. */

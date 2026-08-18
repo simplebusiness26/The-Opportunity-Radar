@@ -434,6 +434,47 @@ describe('event projection', () => {
     expect(result.debounced).toBe(500 * routes - routes);
   });
 
+  /**
+   * The claim is raw SQL, because `FOR UPDATE SKIP LOCKED` has to be. Raw SQL
+   * returns the database's own column names, and reading only the camelCase
+   * ones once produced claimed jobs whose workspaceId was undefined -- so every
+   * handler that scoped work by workspace quietly did nothing and reported
+   * success. Asserting the whole row is what catches that.
+   */
+  it('claims a job with every field populated, not just the single-word ones', async () => {
+    const { repos, clock, workspaceId } = await setup();
+
+    const enqueued = await repos.jobs.enqueue(workspaceId, {
+      kind: 'cluster.assign',
+      payload: { opportunityId: 'abc' },
+      dedupeKey: 'shape-check',
+      priority: 3,
+      maxAttempts: 4,
+      timeoutSec: 120,
+      causationDepth: 2,
+    });
+    expect(enqueued).not.toBeNull();
+
+    const claimed = await repos.jobs.claim('worker-shape', clock.now(), {
+      kinds: ['cluster.assign'],
+    });
+
+    expect(claimed).not.toBeNull();
+    expect(claimed!.workspaceId).toBe(workspaceId);
+    expect(claimed!.dedupeKey).toBe('shape-check');
+    expect(claimed!.maxAttempts).toBe(4);
+    expect(claimed!.timeoutSec).toBe(120);
+    expect(claimed!.causationDepth).toBe(2);
+    expect(claimed!.payload).toEqual({ opportunityId: 'abc' });
+    expect(claimed!.runAt).toBeInstanceOf(Date);
+    expect(claimed!.leaseExpiresAt).toBeInstanceOf(Date);
+
+    // Nothing arrives under a snake_case key that the interface does not declare.
+    for (const key of Object.keys(claimed as unknown as Record<string, unknown>)) {
+      expect(key).not.toContain('_');
+    }
+  });
+
   it('processes events in the order they occurred', async () => {
     const { repos, clock, workspaceId } = await setup();
 
