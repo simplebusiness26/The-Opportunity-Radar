@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../src/web/styles/globals.css';
+import { ServiceWorkerRegistration } from '../src/web/components/service-worker-registration';
 
 export const metadata: Metadata = {
   title: 'Opportunity Radar',
@@ -7,6 +8,8 @@ export const metadata: Metadata = {
     'Where should we deploy our next unit of effort for the highest expected return?',
   applicationName: 'Opportunity Radar',
   manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Radar', statusBarStyle: 'black-translucent' },
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
 };
 
 export const viewport: Viewport = {
@@ -19,7 +22,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

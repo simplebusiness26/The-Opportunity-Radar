@@ -15,6 +15,13 @@
       "when": 1787072560901,
       "tag": "0001_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787075628019,
+      "tag": "0002_cluster_centroid_model",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import {
   sourceAffiliations,
 } from '../schema/index';
 import type {
+  ClusterableEvidenceRow,
   ComputedSignalFields,
   EntityRepository,
   EvidenceRepository,
@@ -19,6 +20,7 @@ import type {
   SignalRepository,
   SignalRow,
 } from '../../../ports/repositories/intelligence';
+import { clusterMembers } from '../schema/index';
 import { slugify } from '../../../domain/text/slug';
 
 type Row = typeof signals.$inferSelect;
@@ -311,6 +313,99 @@ export function createEvidenceRepository(db: Executor): EvidenceRepository {
         .from(sourceAffiliations)
         .where(eq(sourceAffiliations.workspaceId, workspaceId));
       return new Map(rows.map((row) => [row.originKey, row.groupKey]));
+    },
+
+    async listClusterable(workspaceId, options = {}) {
+      const conditions = [eq(evidenceUnits.workspaceId, workspaceId)];
+      if (options.evidenceUnitIds?.length) {
+        conditions.push(inArray(evidenceUnits.id, options.evidenceUnitIds));
+      }
+      if (options.unclusteredOnly) {
+        // Evidence with no live cluster membership. Removed members leave a row
+        // with removed_at set, so they become eligible again.
+        conditions.push(
+          sql`not exists (
+            select 1 from ${clusterMembers}
+            where ${clusterMembers.evidenceUnitId} = ${evidenceUnits.id}
+              and ${clusterMembers.removedAt} is null
+          )`,
+        );
+      }
+
+      const units = await db
+        .select({
+          id: evidenceUnits.id,
+          claimText: evidenceUnits.canonicalClaim,
+          evidenceClass: evidenceUnits.evidenceClass,
+          mentionCount: evidenceUnits.mentionCount,
+          firstSeenAt: evidenceUnits.firstSeenAt,
+          lastSeenAt: evidenceUnits.lastSeenAt,
+          strength: evidenceUnits.effectiveStrength,
+          bodyText: signals.bodyText,
+          embedding: signals.embedding,
+          embeddingModel: signals.embeddingModel,
+        })
+        .from(evidenceUnits)
+        .leftJoin(signals, eq(evidenceUnits.representativeSignalId, signals.id))
+        .where(and(...conditions))
+        .orderBy(desc(evidenceUnits.lastSeenAt))
+        .limit(Math.min(options.limit ?? 500, 2000));
+
+      if (units.length === 0) return [];
+      const ids = units.map((unit) => unit.id);
+
+      const originRows = await db
+        .select({
+          evidenceUnitId: evidenceUnitSignals.evidenceUnitId,
+          originKey: signals.originKey,
+          authorIdentityKey: signals.authorIdentityKey,
+        })
+        .from(evidenceUnitSignals)
+        .innerJoin(signals, eq(evidenceUnitSignals.signalId, signals.id))
+        .where(inArray(evidenceUnitSignals.evidenceUnitId, ids));
+
+      const entityRows = await db
+        .select({
+          evidenceUnitId: evidenceUnitSignals.evidenceUnitId,
+          matchKey: entities.matchKey,
+        })
+        .from(evidenceUnitSignals)
+        .innerJoin(signalEntities, eq(evidenceUnitSignals.signalId, signalEntities.signalId))
+        .innerJoin(entities, eq(signalEntities.entityId, entities.id))
+        .where(inArray(evidenceUnitSignals.evidenceUnitId, ids));
+
+      const originsBy = new Map<string, Set<string>>();
+      for (const row of originRows) {
+        const key = row.originKey ?? row.authorIdentityKey;
+        if (!key) continue;
+        const set = originsBy.get(row.evidenceUnitId) ?? new Set<string>();
+        set.add(key);
+        originsBy.set(row.evidenceUnitId, set);
+      }
+
+      const entitiesBy = new Map<string, Set<string>>();
+      for (const row of entityRows) {
+        const set = entitiesBy.get(row.evidenceUnitId) ?? new Set<string>();
+        set.add(row.matchKey);
+        entitiesBy.set(row.evidenceUnitId, set);
+      }
+
+      return units.map(
+        (unit): ClusterableEvidenceRow => ({
+          id: unit.id,
+          claimText: unit.claimText,
+          bodyText: unit.bodyText ?? '',
+          embedding: unit.embedding,
+          embeddingModel: unit.embeddingModel,
+          entityKeys: [...(entitiesBy.get(unit.id) ?? [])],
+          evidenceClass: unit.evidenceClass,
+          originKeys: [...(originsBy.get(unit.id) ?? [])],
+          mentionCount: unit.mentionCount,
+          firstSeenAt: unit.firstSeenAt,
+          lastSeenAt: unit.lastSeenAt,
+          strength: unit.strength,
+        }),
+      );
     },
   };
 }

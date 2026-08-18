@@ -49,6 +49,21 @@ export default tseslint.config(
     },
   },
   {
+    // The service worker runs in a worker global scope, not a page.
+    files: ['public/sw.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        self: 'readonly',
+        caches: 'readonly',
+        fetch: 'readonly',
+        Response: 'readonly',
+        URL: 'readonly',
+      },
+    },
+    rules: { 'no-undef': 'error' },
+  },
+  {
     files: ['scripts/**/*.ts', 'tests/**/*.ts'],
     rules: { 'no-console': 'off', 'no-restricted-syntax': 'off' },
   },

@@ -1,0 +1,1 @@
+ALTER TABLE "clusters" ADD COLUMN "centroid_embedding_model" text;

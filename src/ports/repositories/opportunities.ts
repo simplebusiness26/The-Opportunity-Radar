@@ -54,6 +54,20 @@ export interface ClusterRepository {
     },
   ): Promise<void>;
   setStatus(clusterId: string, status: ClusterRow['status']): Promise<void>;
+  /** Cluster shapes used to decide where new evidence belongs. */
+  centroids(workspaceId: string): Promise<
+    Array<{
+      clusterId: string;
+      embedding: Buffer | null;
+      embeddingModel: string | null;
+      title: string;
+      problemStatement: string;
+      entityKeys: string[];
+    }>
+  >;
+  /** Clusters an evidence unit already belongs to, so joins stay idempotent. */
+  clusterIdsForEvidence(workspaceId: string, evidenceUnitId: string): Promise<string[]>;
+  setCentroid(clusterId: string, embedding: Buffer | null, embeddingModel: string | null): Promise<void>;
 }
 
 export interface OpportunityRow {
@@ -152,6 +166,8 @@ export interface ScoreRow {
   dimensions: unknown;
   gaps: unknown;
   confidenceFactors: unknown;
+  /** The frozen inputs this score was computed from, for provenance. */
+  inputsSnapshot: unknown;
   computedAt: Date;
 }
 

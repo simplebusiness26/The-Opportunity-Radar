@@ -12,6 +12,7 @@ import { cx } from '../ui/primitives';
 const NAV = [
   { href: '/dashboard', label: 'Radar', short: 'Radar' },
   { href: '/opportunities', label: 'Opportunities', short: 'Opps' },
+  { href: '/clusters', label: 'Problems', short: 'Problems' },
   { href: '/signals', label: 'Signals', short: 'Signals' },
   { href: '/intelligence', label: 'Our capability', short: 'Us' },
   { href: '/system', label: 'Machine', short: 'Machine' },
@@ -69,14 +70,23 @@ export function AppShell({
         {/* Bottom padding clears the fixed mobile nav and the home indicator. */}
         <main className="min-w-0 flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-10">{children}</main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden">
+        {/*
+          Columns are derived from the destinations rather than hardcoded: a
+          fixed count silently wraps to a second row when a destination is
+          added, and the taller bar then covers the bottom of every page.
+        */}
+        <nav
+          aria-label="Primary"
+          style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}
+          className="fixed inset-x-0 bottom-0 z-10 grid border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        >
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cx(
-                'flex min-h-[56px] flex-col items-center justify-center gap-0.5',
-                'text-[0.7rem] text-ink-muted active:text-ink',
+                'flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1',
+                'text-center text-[0.65rem] leading-tight text-ink-muted active:text-ink',
               )}
             >
               {item.short}

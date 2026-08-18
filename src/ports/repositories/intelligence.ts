@@ -152,6 +152,30 @@ export interface EvidenceRepository {
   refreshCounts(evidenceUnitId: string, counts: { mentionCount: number; independentSourceCount: number }): Promise<void>;
   updateStrength(evidenceUnitId: string, effectiveStrength: number, computedAt: Date): Promise<void>;
   affiliations(workspaceId: string): Promise<Map<string, string>>;
+  /**
+   * Everything the clustering engine needs about a set of evidence, in one
+   * query: the claim, its vector, its entities and the origins behind it.
+   */
+  listClusterable(
+    workspaceId: string,
+    options?: { evidenceUnitIds?: string[]; unclusteredOnly?: boolean; limit?: number },
+  ): Promise<ClusterableEvidenceRow[]>;
+}
+
+export interface ClusterableEvidenceRow {
+  id: string;
+  claimText: string;
+  /** Body of the representative signal, so clustering sees the substance. */
+  bodyText: string;
+  embedding: Buffer | null;
+  embeddingModel: string | null;
+  entityKeys: string[];
+  evidenceClass: EvidenceClass;
+  originKeys: string[];
+  mentionCount: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  strength: number;
 }
 
 export interface EntityRepository {

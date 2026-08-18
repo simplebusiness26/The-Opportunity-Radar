@@ -59,7 +59,13 @@ export const clusters = pgTable(
     targetCustomer: text('target_customer'),
     status: clusterStatusEnum('status').notNull().default('new'),
 
+    /**
+     * Base64 of a packed Float32Array. Stored as text rather than a vector
+     * column so one schema serves both PostgreSQL and the embedded database;
+     * similarity is computed over a blocked candidate set in TypeScript.
+     */
     centroidEmbedding: text('centroid_embedding'),
+    centroidEmbeddingModel: text('centroid_embedding_model'),
 
     /** Materialised from members; recomputed on membership change. */
     rawMentions: integer('raw_mentions').notNull().default(0),

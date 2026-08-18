@@ -4,6 +4,9 @@ import {
   clusterMembers,
   clusters,
   decisionLog,
+  entities,
+  evidenceUnitSignals,
+  signalEntities,
   opportunities,
   opportunityEvidence,
   opportunityStateTransitions,
@@ -112,6 +115,84 @@ export function createClusterRepository(db: Executor): ClusterRepository {
 
     async setStatus(clusterId, status) {
       await db.update(clusters).set({ status }).where(eq(clusters.id, clusterId));
+    },
+
+    async centroids(workspaceId) {
+      const rows = await db
+        .select({
+          clusterId: clusters.id,
+          embedding: clusters.centroidEmbedding,
+          embeddingModel: clusters.centroidEmbeddingModel,
+          title: clusters.title,
+          problemStatement: clusters.problemStatement,
+        })
+        .from(clusters)
+        .where(
+          and(
+            eq(clusters.workspaceId, workspaceId),
+            // A merged cluster is a redirect, not a destination.
+            isNull(clusters.mergedIntoId),
+          ),
+        );
+
+      if (rows.length === 0) return [];
+
+      const entityRows = await db
+        .select({ clusterId: clusterMembers.clusterId, matchKey: entities.matchKey })
+        .from(clusterMembers)
+        .innerJoin(evidenceUnitSignals, eq(clusterMembers.evidenceUnitId, evidenceUnitSignals.evidenceUnitId))
+        .innerJoin(signalEntities, eq(evidenceUnitSignals.signalId, signalEntities.signalId))
+        .innerJoin(entities, eq(signalEntities.entityId, entities.id))
+        .where(
+          and(
+            inArray(
+              clusterMembers.clusterId,
+              rows.map((row) => row.clusterId),
+            ),
+            isNull(clusterMembers.removedAt),
+          ),
+        );
+
+      const entitiesBy = new Map<string, Set<string>>();
+      for (const row of entityRows) {
+        const set = entitiesBy.get(row.clusterId) ?? new Set<string>();
+        set.add(row.matchKey);
+        entitiesBy.set(row.clusterId, set);
+      }
+
+      return rows.map((row) => ({
+        clusterId: row.clusterId,
+        embedding: row.embedding ? Buffer.from(row.embedding, 'base64') : null,
+        embeddingModel: row.embeddingModel,
+        title: row.title,
+        problemStatement: row.problemStatement,
+        entityKeys: [...(entitiesBy.get(row.clusterId) ?? [])],
+      }));
+    },
+
+    async clusterIdsForEvidence(workspaceId, evidenceUnitId) {
+      const rows = await db
+        .select({ clusterId: clusterMembers.clusterId })
+        .from(clusterMembers)
+        .innerJoin(clusters, eq(clusterMembers.clusterId, clusters.id))
+        .where(
+          and(
+            eq(clusters.workspaceId, workspaceId),
+            eq(clusterMembers.evidenceUnitId, evidenceUnitId),
+            isNull(clusterMembers.removedAt),
+          ),
+        );
+      return rows.map((row) => row.clusterId);
+    },
+
+    async setCentroid(clusterId, embedding, embeddingModel) {
+      await db
+        .update(clusters)
+        .set({
+          centroidEmbedding: embedding ? embedding.toString('base64') : null,
+          centroidEmbeddingModel: embeddingModel,
+        })
+        .where(eq(clusters.id, clusterId));
     },
   };
 }
