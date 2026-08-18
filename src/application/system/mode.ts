@@ -13,7 +13,7 @@ export async function readModeStatus(
   repos: Repositories,
   workspaceId: string,
 ): Promise<ModeStatus> {
-  const enabledProviders = repos.aiProviders ? await repos.aiProviders.countEnabled() : 0;
+  const enabledProviders = await repos.ai.countEnabled(workspaceId);
   const enabledSources = repos.sources ? await repos.sources.countEnabled() : 0;
   const enabledSchedules = await repos.schedules.countEnabled(workspaceId);
 

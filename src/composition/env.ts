@@ -36,6 +36,17 @@ const envSchema = z.object({
     .default('false')
     .transform((value) => value === 'true'),
   RADAR_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+
+  /**
+   * Forces the fixture provider regardless of what the database holds, so a
+   * test run cannot reach a real provider by accident.
+   */
+  RADAR_AI_PROVIDER: z.enum(['configured', 'fixture']).default('configured'),
+  RADAR_FIXTURE_DIR: z.string().optional(),
+  RADAR_RECORD_FIXTURES: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

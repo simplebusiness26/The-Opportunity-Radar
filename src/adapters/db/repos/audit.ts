@@ -1,10 +1,14 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Executor } from './_ctx';
-import { auditLog } from '../schema/index';
+import { auditLog, secrets } from '../schema/index';
 import type { ActorCtx } from '../../../domain/types/identity';
 import type { AuditEntry } from '../../../ports/repositories/audit';
 import { actorKind, actorUserId } from '../../../domain/types/identity';
-import type { AuditRepository, AuditRow } from '../../../ports/repositories/audit';
+import type {
+  AuditRepository,
+  AuditRow,
+  SecretRepository,
+} from '../../../ports/repositories/audit';
 
 /**
  * Written inside the same transaction as the change it describes, so the log
@@ -80,5 +84,57 @@ export function createAuditRepository(db: Executor): AuditRepository {
     recordSystem: (entry) => recordSystemAudit(db, entry),
     list: (workspaceId, options) => listAudit(db, workspaceId, options) as Promise<AuditRow[]>,
     countActions: (workspaceId, action) => countAuditActions(db, workspaceId, action),
+  };
+}
+
+export function createSecretRepository(db: Executor): SecretRepository {
+  return {
+    async put(workspaceId, input) {
+      const [row] = await db
+        .insert(secrets)
+        .values({
+          workspaceId,
+          kind: input.kind,
+          name: input.name,
+          ciphertext: input.sealed.ciphertext,
+          nonce: input.sealed.nonce,
+          authTag: input.sealed.authTag,
+          keyVersion: input.sealed.keyVersion,
+          hint: input.sealed.hint,
+        })
+        .returning({ id: secrets.id });
+      if (!row) throw new Error('put secret returned no row');
+      return row;
+    },
+
+    async find(secretId) {
+      const rows = await db.select().from(secrets).where(eq(secrets.id, secretId)).limit(1);
+      const row = rows[0];
+      return row
+        ? {
+            ciphertext: row.ciphertext,
+            nonce: row.nonce,
+            authTag: row.authTag,
+            keyVersion: row.keyVersion,
+            hint: row.hint ?? '',
+          }
+        : null;
+    },
+
+    async describe(workspaceId, kind) {
+      // Deliberately never selects ciphertext: a stored credential has no route
+      // back out through the API, only in.
+      const rows = await db
+        .select({ id: secrets.id, name: secrets.name, hint: secrets.hint })
+        .from(secrets)
+        .where(and(eq(secrets.workspaceId, workspaceId), eq(secrets.kind, kind)));
+      return rows.map((row) => ({ id: row.id, name: row.name, hasValue: true, hint: row.hint }));
+    },
+
+    async remove(workspaceId, secretId) {
+      await db
+        .delete(secrets)
+        .where(and(eq(secrets.workspaceId, workspaceId), eq(secrets.id, secretId)));
+    },
   };
 }

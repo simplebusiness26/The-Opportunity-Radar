@@ -1,7 +1,8 @@
 import type { Repositories, Transactor } from '../../../ports/repositories/index';
 import type { Database } from '../client';
 import type { Executor } from './_ctx';
-import { createAuditRepository } from './audit';
+import { createAuditRepository, createSecretRepository } from './audit';
+import { createAiRepository, createBudgetRepository } from './ai';
 import { createExecutionHistoryRepository, createGraphRepository } from './graph';
 import {
   createAlertRepository,
@@ -48,6 +49,9 @@ export function createRepositories(db: Executor): Repositories {
     visits: createVisitRepository(db),
     runStats: createRunStatsRepository(db),
     graph: createGraphRepository(db),
+    ai: createAiRepository(db),
+    budgets: createBudgetRepository(db),
+    secrets: createSecretRepository(db),
     executionHistory: createExecutionHistoryRepository(db),
   };
 }

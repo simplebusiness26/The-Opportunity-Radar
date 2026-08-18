@@ -37,3 +37,26 @@ export interface AuditRepository {
   ): Promise<AuditRow[]>;
   countActions(workspaceId: string, action: string): Promise<number>;
 }
+
+export interface SecretRepository {
+  /** Stores a sealed credential and returns its id. */
+  put(
+    workspaceId: string,
+    input: { kind: string; name: string; sealed: SealedSecretRow },
+  ): Promise<{ id: string }>;
+  find(secretId: string): Promise<SealedSecretRow | null>;
+  /** Never returns ciphertext: only whether a value exists and its hint. */
+  describe(
+    workspaceId: string,
+    kind: string,
+  ): Promise<Array<{ id: string; name: string; hasValue: boolean; hint: string | null }>>;
+  remove(workspaceId: string, secretId: string): Promise<void>;
+}
+
+export interface SealedSecretRow {
+  ciphertext: string;
+  nonce: string;
+  authTag: string;
+  keyVersion: string;
+  hint: string;
+}
