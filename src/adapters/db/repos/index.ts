@@ -3,6 +3,11 @@ import type { Database } from '../client';
 import type { Executor } from './_ctx';
 import { createAuditRepository } from './audit';
 import { createTenancyRepository } from './tenancy';
+import {
+  createEntityRepository,
+  createEvidenceRepository,
+  createSignalRepository,
+} from './signals';
 import { createSessionRepository, createUserRepository } from './users';
 
 /** Binds every repository to one executor: the pool, or an open transaction. */
@@ -12,6 +17,9 @@ export function createRepositories(db: Executor): Repositories {
     sessions: createSessionRepository(db),
     tenancy: createTenancyRepository(db),
     audit: createAuditRepository(db),
+    signals: createSignalRepository(db),
+    evidence: createEvidenceRepository(db),
+    entities: createEntityRepository(db),
   };
 }
 

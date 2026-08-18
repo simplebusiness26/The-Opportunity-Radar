@@ -1,4 +1,9 @@
 import type { AuditRepository } from './audit';
+import type {
+  EntityRepository,
+  EvidenceRepository,
+  SignalRepository,
+} from './intelligence';
 import type { SessionRepository, TenancyRepository, UserRepository } from './auth';
 
 /**
@@ -11,6 +16,9 @@ export interface Repositories {
   sessions: SessionRepository;
   tenancy: TenancyRepository;
   audit: AuditRepository;
+  signals: SignalRepository;
+  evidence: EvidenceRepository;
+  entities: EntityRepository;
 
   /**
    * Introduced with the AI and ingestion layers. Optional here so that code
@@ -36,3 +44,4 @@ export interface Transactor {
 
 export * from './audit';
 export * from './auth';
+export * from './intelligence';
