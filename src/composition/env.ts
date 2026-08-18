@@ -28,6 +28,13 @@ const envSchema = z.object({
   RADAR_TICK_TOKEN: z.string().min(16).optional(),
   RADAR_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
   RADAR_CLOCK: z.string().optional(),
+  /** Multiplies every rate limit. See docs/SECURITY.md before raising it. */
+  RADAR_RATE_LIMIT_SCALE: z.coerce.number().min(0.1).max(1000).default(1),
+  /** Only enable behind a proxy that overwrites x-forwarded-for. */
+  RADAR_TRUST_PROXY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   RADAR_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

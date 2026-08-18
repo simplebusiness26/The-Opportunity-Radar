@@ -1,20 +1,15 @@
-/**
- * Placeholder root. Replaced by the dashboard in Phase 2; kept minimal so the
- * Phase 0 smoke test asserts the toolchain, not the product.
- */
+import { redirect } from 'next/navigation';
+import { readRequestContext } from '../src/web/http/context';
+
 export const dynamic = 'force-dynamic';
 
-export default function HomePage() {
-  return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-faint">
-        Opportunity Radar
-      </p>
-      <h1 className="mt-3 text-2xl font-semibold text-ink">System initialising</h1>
-      <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-        The core platform is installed and the database is reachable. Product surfaces are
-        introduced in later build phases.
-      </p>
-    </main>
-  );
+/**
+ * The root is a router, not a screen: an unauthenticated visitor is sent to
+ * setup or sign-in, and everyone else lands on the dashboard.
+ */
+export default async function RootPage() {
+  const { session, ctx } = await readRequestContext();
+  if (!session) redirect('/sign-in');
+  if (!ctx) redirect('/setup');
+  redirect('/dashboard');
 }

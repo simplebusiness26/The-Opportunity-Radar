@@ -2,8 +2,10 @@
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDb } from '../src/adapters/db/client';
 import { loadEnv } from '../src/composition/env';
+import { loadEnvFile } from '../src/composition/load-env-file';
 
 async function main(): Promise<void> {
+  loadEnvFile();
   const env = loadEnv();
   const handle = createDb(env.DATABASE_URL, 1);
   try {

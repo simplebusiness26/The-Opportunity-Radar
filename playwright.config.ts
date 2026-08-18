@@ -43,6 +43,15 @@ locale: 'en-GB',
     env: {
       RADAR_CLOCK: 'fixed:2026-08-18T00:00:00Z',
       RADAR_E2E: '1',
+      // Origin verification compares against this exact value, so it has to be
+      // the address the tests actually browse.
+      RADAR_PUBLIC_URL: BASE_URL,
+      // The acceptance suite creates several isolated owners, so the
+      // single-owner lock is exercised by its own test rather than globally.
+      RADAR_SINGLE_OWNER: 'false',
+      // The suite creates several accounts in quick succession from one
+      // address, which the production limits would rightly refuse.
+      RADAR_RATE_LIMIT_SCALE: '200',
     },
   },
 });
