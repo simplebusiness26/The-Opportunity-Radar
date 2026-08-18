@@ -6,6 +6,7 @@ import { refreshEvidenceStrength } from '../../application/system/decay-refresh'
 import { ingestSource } from '../../application/sources/ingest';
 import { investigateOpportunity } from '../../pipeline/investigations/runner';
 import { decideDepth } from '../../domain/investigation/policy';
+import { evaluateTriggers } from '../../application/memory/triggers';
 import { defineJobs, JobBlocked, type JobContext } from '../types';
 import { projectEvents } from '../event-router';
 
@@ -317,6 +318,22 @@ export const JOB_REGISTRY = defineJobs([
       }
 
       return { detail: { considered: opportunities.length, enqueued, held } };
+    },
+  },
+  {
+    kind: 'triggers.evaluate',
+    description: 'Checks re-evaluation triggers against evidence that has arrived since.',
+    timeoutSec: 120,
+    handler: async (context) => {
+      const result = await evaluateTriggers(deps(context), systemCtx(context));
+      return {
+        detail: {
+          triggersChecked: result.triggersChecked,
+          signalsChecked: result.signalsChecked,
+          fired: result.fired.length,
+          reopened: result.fired.filter((entry) => entry.reopened).length,
+        },
+      };
     },
   },
 ]);

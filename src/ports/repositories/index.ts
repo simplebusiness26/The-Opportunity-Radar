@@ -7,6 +7,7 @@ import type {
   ValidationRepository,
 } from './investigation';
 import type { ExecutionHistoryRepository, GraphRepository } from './graph';
+import type { RelationshipRepository, TriggerRepository } from './memory';
 import type {
   AlertRepository,
   BriefRepository,
@@ -62,6 +63,8 @@ export interface Repositories {
   uncertainty: UncertaintyRepository;
   validation: ValidationRepository;
   executionHistory: ExecutionHistoryRepository;
+  triggers: TriggerRepository;
+  relationships: RelationshipRepository;
 
   /**
    * Introduced with the AI and ingestion layers. Optional here so that code
@@ -96,3 +99,5 @@ export * from './ai';
 export * from './sources';
 
 export * from './investigation';
+
+export * from './memory';

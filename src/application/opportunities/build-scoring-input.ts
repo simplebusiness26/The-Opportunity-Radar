@@ -3,6 +3,7 @@ import { computeDecay, summariseFreshness } from '../../domain/decay/index';
 import type { EvidenceClass } from '../../domain/taxonomy/evidence-class';
 import type { SignalTypeKey } from '../../domain/taxonomy/signal-types';
 import type { ScoringInput } from '../../domain/scoring/types';
+import { computeCalibration } from '../../domain/calibration/index';
 import type { Repositories } from '../../ports/repositories/index';
 import type { OpportunityRow } from '../../ports/repositories/opportunities';
 
@@ -79,6 +80,8 @@ export async function buildScoringInput(
 
   const freshness = summariseFreshness(decayResults);
 
+  const calibration = computeCalibration(await repos.executionHistory.list(workspaceId, 500));
+
   // Prices come from the evidence itself, so "people pay about this much" is a
   // claim backed by specific rows rather than an estimate.
   const observedMonthlySpend = await collectObservedSpend(repos, workspaceId, forIds);
@@ -137,10 +140,13 @@ export async function buildScoringInput(
       competitorMoving: null,
       ...context.timing,
     },
+    // Read from this team's own completed work. Below the minimum sample the
+    // domain refuses to produce a ratio at all, so an early workspace scores
+    // with unadjusted estimates rather than a correction drawn from noise.
     calibration: {
-      sampleSize: 0,
-      confidenceBias: null,
-      buildEstimateRatio: null,
+      sampleSize: calibration.sampleSize,
+      confidenceBias: calibration.confidenceBias,
+      buildEstimateRatio: calibration.buildEstimateRatio,
       ...context.calibration,
     },
   };

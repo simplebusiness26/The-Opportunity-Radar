@@ -7,7 +7,7 @@ import { controllableClock } from '../../src/adapters/clock/index';
 import { defineJobs, JobBlocked, JobPermanentFailure } from '../../src/jobs/types';
 import { drainQueue, runOneJob } from '../../src/jobs/runner';
 import { runScheduler } from '../../src/jobs/scheduler';
-import { projectEvents } from '../../src/jobs/event-router';
+import { EVENT_ROUTES, projectEvents } from '../../src/jobs/event-router';
 import type { Repositories, Transactor } from '../../src/ports/repositories/index';
 
 const NOW = new Date('2026-08-18T00:00:00Z');
@@ -400,9 +400,13 @@ describe('event projection', () => {
       subjectId: '00000000-0000-4000-8000-000000000001',
     });
 
+    // Counted from the route table rather than hard-coded: adding a
+    // consequence to an event should not silently break this test's meaning.
+    const routes = EVENT_ROUTES['evidence.created']!.length;
+
     const result = await projectEvents({ repos, clock });
     expect(result.processed).toBe(1);
-    expect(result.enqueued).toBe(1);
+    expect(result.enqueued).toBe(routes);
 
     const jobs = await repos.jobs.list(workspaceId, { kind: 'cluster.assign' });
     expect(jobs).toHaveLength(1);
@@ -421,10 +425,13 @@ describe('event projection', () => {
       });
     }
 
+    const routes = EVENT_ROUTES['evidence.created']!.length;
+
     const result = await projectEvents({ repos, clock, }, { limit: 500 });
     expect(result.processed).toBe(500);
-    expect(result.enqueued).toBe(1);
-    expect(result.debounced).toBe(499);
+    // One job per consequence, however large the burst.
+    expect(result.enqueued).toBe(routes);
+    expect(result.debounced).toBe(500 * routes - routes);
   });
 
   it('processes events in the order they occurred', async () => {
@@ -453,7 +460,7 @@ describe('event projection', () => {
     });
 
     const result = await projectEvents({ repos, clock });
-    expect(result.droppedTooDeep).toBe(1);
+    expect(result.droppedTooDeep).toBe(EVENT_ROUTES['evidence.created']!.length);
     expect(result.enqueued).toBe(0);
   });
 });

@@ -43,6 +43,12 @@ export const DEFAULT_SCHEDULES = [
     description: 'Ages stored evidence and flags what has gone stale.',
   },
   {
+    key: 'triggers.evaluate',
+    cron: '50 * * * *',
+    jobKind: 'triggers.evaluate',
+    description: 'Checks what would change our mind about a rejected opportunity.',
+  },
+  {
     key: 'opportunities.sweep_investigations',
     cron: '35 5 * * *',
     jobKind: 'opportunities.sweep_investigations',

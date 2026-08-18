@@ -10,6 +10,12 @@ import { OpportunityActions } from '../../../../src/web/components/opportunity-a
 import { InvestigationLogPanels } from '../../../../src/web/components/investigation-log';
 import { readInvestigationLog } from '../../../../src/application/opportunities/investigation-log';
 import { readModeStatus } from '../../../../src/application/system/mode';
+import { MemoryPanels } from '../../../../src/web/components/memory-panels';
+import {
+  readRelationships,
+  suggestRelationships,
+} from '../../../../src/application/memory/relationships';
+import { listTriggers, proposeTriggers } from '../../../../src/application/memory/triggers';
 import { readRequestContext, requireWorkspacePage } from '../../../../src/web/http/context';
 import { container } from '../../../../src/composition/container';
 
@@ -30,6 +36,14 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
     c.repos.opportunities.evidenceFor(id),
     readInvestigationLog(c.repos, ctx, id),
     readModeStatus(c.repos, ctx.workspaceId),
+  ]);
+
+  const memoryDeps = { repos: c.repos, tx: c.tx, clock: c.clock };
+  const [relationships, suggestions, triggers, proposals] = await Promise.all([
+    readRelationships(c.repos, ctx, id),
+    suggestRelationships(c.repos, ctx, id),
+    listTriggers(memoryDeps, ctx, id),
+    proposeTriggers(memoryDeps, ctx, id),
   ]);
 
   const snapshot = score?.inputsSnapshot as
@@ -210,6 +224,16 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       </Panel>
 
       <InvestigationLogPanels log={investigation} aiConfigured={mode.mode !== 'manual'} />
+
+      <MemoryPanels
+        opportunityId={opportunity.id}
+        relationships={relationships}
+        suggestions={suggestions}
+        triggers={triggers}
+        proposals={proposals}
+        state={opportunity.state}
+        csrfToken={session?.csrfSecret ?? ''}
+      />
 
       <Panel>
         <PanelHeader title="History" />

@@ -255,6 +255,24 @@ export async function recordSignal(
       after: { outcome, dedupeReason: decision.reason, evidenceUnitId },
     });
 
+    /*
+     * Appended in the same transaction as the write it describes, so the
+     * outbox can never claim something happened that did not. What it causes
+     * -- clustering, and checking re-evaluation triggers -- is decided by the
+     * event router rather than here.
+     */
+    await repos.events.append(ctx.workspaceId, {
+      kind: 'evidence.created',
+      subjectType: 'evidence_unit',
+      subjectId: evidenceUnitId,
+      payload: {
+        workspace: ctx.workspaceId,
+        signalId: signal.id,
+        evidenceUnitId,
+        outcome,
+      },
+    });
+
     return {
       signal,
       outcome,

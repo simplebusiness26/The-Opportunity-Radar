@@ -3,6 +3,7 @@ import { container } from '../../../src/composition/container';
 import { capabilityLabel } from '../../../src/domain/taxonomy/capabilities';
 import { Callout, EmptyState, Panel, PanelHeader } from '../../../src/web/ui/primitives';
 import { CapabilityForm } from '../../../src/web/components/capability-form';
+import { readCalibration } from '../../../src/application/memory/execution';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +18,13 @@ export default async function IntelligencePage() {
   const { ctx, session } = await requireWorkspacePage('intelligence.read');
   const c = container();
 
-  const [capabilities, assets, resources, goals] = await Promise.all([
+  const [capabilities, assets, resources, goals, calibration, history] = await Promise.all([
     c.repos.graph.listCapabilities(ctx.workspaceId),
     c.repos.graph.listAssets(ctx.workspaceId),
     c.repos.graph.listResources(ctx.workspaceId),
     c.repos.graph.listGoals(ctx.workspaceId),
+    readCalibration(c.repos, ctx.workspaceId),
+    c.repos.executionHistory.list(ctx.workspaceId, 10),
   ]);
 
   const empty =
@@ -146,6 +149,76 @@ export default async function IntelligencePage() {
             ))}
           </ul>
         )}
+      </Panel>
+      <Panel>
+        <PanelHeader
+          title="Calibration"
+          hint="How well Radar's own estimates have held up"
+        />
+        <div className="space-y-3 px-4 py-3">
+          {calibration.usable ? (
+            <>
+              <dl className="grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="font-mono text-[0.6rem] uppercase tracking-wider text-ink-faint">
+                    Build estimates
+                  </dt>
+                  <dd className="font-mono text-lg tabular-nums text-ink">
+                    {calibration.buildEstimateRatio === null
+                      ? '—'
+                      : `${calibration.buildEstimateRatio.toFixed(2)}×`}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-mono text-[0.6rem] uppercase tracking-wider text-ink-faint">
+                    Confidence bias
+                  </dt>
+                  <dd className="font-mono text-lg tabular-nums text-ink">
+                    {calibration.confidenceBias === null
+                      ? '—'
+                      : `${calibration.confidenceBias > 0 ? '+' : ''}${Math.round(calibration.confidenceBias * 100)}`}
+                  </dd>
+                </div>
+              </dl>
+              <ul className="space-y-1 text-sm text-ink-muted">
+                {calibration.notes.map((note, index) => (
+                  <li key={index}>{note}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            /*
+             * The refusal is the feature. An adjustment computed from three
+             * projects would distort every estimate afterwards, so it is stated
+             * plainly instead of shown as a number nobody should trust.
+             */
+            <Callout tone="caution" title="Not calibrating yet">
+              {calibration.refusal}
+            </Callout>
+          )}
+
+          {history.length > 0 ? (
+            <ul className="divide-y divide-line border-t border-line">
+              {history.map((entry) => (
+                <li key={entry.id} className="flex items-baseline justify-between gap-3 py-2">
+                  <span className="text-sm text-ink-muted">
+                    {entry.reason ?? entry.outcome.replace(/_/g, ' ')}
+                  </span>
+                  <span className="font-mono text-[0.65rem] text-ink-faint">
+                    {entry.predictedBuildDays !== null && entry.actualBuildDays !== null
+                      ? `${entry.predictedBuildDays}d predicted, ${entry.actualBuildDays}d actual`
+                      : entry.outcome.replace(/_/g, ' ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-muted">
+              No completed work has been recorded yet. Recording outcomes is what turns Radar&rsquo;s
+              estimates into something that can be checked.
+            </p>
+          )}
+        </div>
       </Panel>
     </div>
   );

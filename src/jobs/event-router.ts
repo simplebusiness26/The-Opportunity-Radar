@@ -31,6 +31,9 @@ export interface EventRoute {
 export const EVENT_ROUTES: Record<string, EventRoute[]> = {
   'evidence.created': [
     { jobKind: 'cluster.assign', debounceOn: 'workspace', delaySeconds: DEBOUNCE_SECONDS },
+    // Debounced on the workspace: one sweep covers every trigger, however much
+    // evidence arrived in the burst.
+    { jobKind: 'triggers.evaluate', debounceOn: 'workspace', delaySeconds: DEBOUNCE_SECONDS },
   ],
   'evidence.strengthened': [
     { jobKind: 'cluster.recompute', debounceOn: 'clusterId', delaySeconds: DEBOUNCE_SECONDS },
