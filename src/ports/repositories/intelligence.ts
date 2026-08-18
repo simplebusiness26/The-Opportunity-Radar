@@ -83,6 +83,13 @@ export interface SignalFilter {
 export interface SignalRepository {
   insert(workspaceId: string, input: NewSignal & { computed: ComputedSignalFields }): Promise<SignalRow>;
   findById(workspaceId: string, id: string): Promise<SignalRow | null>;
+  /**
+   * Finds an item already read from this source. A re-fetch of the identical
+   * item is the same observation seen twice, not a new one.
+   */
+  findByExternalId(workspaceId: string, sourceId: string, externalId: string): Promise<SignalRow | null>;
+  /** Records that an existing item was seen again, without creating a mention. */
+  touchObserved(signalId: string, observedAt: Date): Promise<void>;
   list(workspaceId: string, filter?: SignalFilter): Promise<{ rows: SignalRow[]; total: number }>;
   /**
    * Candidates the dedupe cascade should compare against. Narrowed by blocking

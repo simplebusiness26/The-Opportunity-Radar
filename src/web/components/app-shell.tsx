@@ -25,6 +25,7 @@ const NAV = [
   { href: '/signals', label: 'Signals', short: 'Signals', primary: true },
   { href: '/brief', label: 'Brief', short: 'Brief', primary: false },
   { href: '/intelligence', label: 'Our capability', short: 'Us', primary: false },
+  { href: '/sources', label: 'Sources', short: 'Sources', primary: false },
   { href: '/system', label: 'Machine', short: 'Machine', primary: false },
 ] as const;
 

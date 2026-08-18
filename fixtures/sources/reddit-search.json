@@ -1,0 +1,21 @@
+{
+  "note": "A recorded Reddit search response, trimmed. Real shape, invented content.",
+  "data": {
+    "after": null,
+    "children": [
+      {
+        "data": {
+          "id": "1abc234",
+          "title": "How do you handle no-shows?",
+          "selftext": "We lose about £400 a month to people who book a table and never arrive. Our booking software has no way to take a deposit.",
+          "permalink": "/r/restaurateur/comments/1abc234/how_do_you_handle_noshows/",
+          "author": "kitchen_owner",
+          "created_utc": 1786000000,
+          "subreddit": "restaurateur",
+          "score": 47,
+          "num_comments": 23
+        }
+      }
+    ]
+  }
+}

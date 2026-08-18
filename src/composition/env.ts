@@ -18,7 +18,16 @@ const base64Key = z
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required (run `npm run db:up` for a local one)'),
-  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+  /**
+   * Defaults to one connection.
+   *
+   * The embedded development database multiplexes every client connection onto
+   * a single backend, so a transaction on one connection can interleave with a
+   * query on another and desynchronise the protocol. One connection serialises
+   * everything and is correct there. Raise it for a real PostgreSQL server --
+   * see docs/DEPLOYMENT.md.
+   */
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(100).default(1),
   RADAR_SECRET_KEY: base64Key.optional(),
   RADAR_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
   RADAR_SINGLE_OWNER: z

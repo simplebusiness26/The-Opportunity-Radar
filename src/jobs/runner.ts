@@ -1,6 +1,7 @@
 import { backoffSeconds, decideOutcome, DEFAULT_BACKOFF } from '../domain/jobs/backoff';
 import type { Clock } from '../ports/clock';
 import type { Repositories, Transactor } from '../ports/repositories/index';
+import type { IngestDeps } from '../application/sources/ingest';
 import { JobBlocked, JobPermanentFailure, type JobContext, type JobRegistry } from './types';
 
 export interface RunnerDeps {
@@ -9,6 +10,8 @@ export interface RunnerDeps {
   clock: Clock;
   registry: JobRegistry;
   workerId: string;
+  /** Supplied by workers that are allowed to reach the network. */
+  ingest?: IngestDeps;
   /** Injected so retry timing is deterministic under test. */
   random?: () => number;
 }
@@ -49,6 +52,7 @@ export async function runOneJob(deps: RunnerDeps): Promise<'idle' | 'completed' 
     repos: deps.repos,
     tx: deps.tx,
     clock: deps.clock,
+    ingest: deps.ingest,
     heartbeat: () =>
       deps.repos.jobs.heartbeat(job.id, deps.clock.now(), definition.timeoutSec ?? job.timeoutSec),
     checkpoint: (state) => deps.repos.jobs.saveCheckpoint(job.id, state),

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Example regulator announcements</title>
+    <item>
+      <title>New deposit protection rules for hospitality bookings</title>
+      <link>https://regulator.example/announcements/deposit-rules</link>
+      <guid>https://regulator.example/announcements/deposit-rules</guid>
+      <pubDate>Tue, 12 Aug 2026 09:00:00 GMT</pubDate>
+      <dc:creator>Regulatory Affairs</dc:creator>
+      <description><![CDATA[<p>From January, businesses taking booking deposits must hold them in a separate client account. Compliance is mandatory for all hospitality operators.</p>]]></description>
+    </item>
+    <item>
+      <title>Consultation opens on automated payment disclosures</title>
+      <link>https://regulator.example/announcements/payment-disclosures</link>
+      <guid>https://regulator.example/announcements/payment-disclosures</guid>
+      <pubDate>Wed, 13 Aug 2026 11:30:00 GMT</pubDate>
+      <description>A consultation on how automated charges must be disclosed at the point of booking.</description>
+    </item>
+  </channel>
+</rss>

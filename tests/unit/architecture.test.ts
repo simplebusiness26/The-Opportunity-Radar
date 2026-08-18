@@ -119,3 +119,48 @@ describe('time is injected', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * A transaction runs on a single connection, so two queries issued
+ * concurrently inside one interleave their protocol messages and desynchronise
+ * it. The failure surfaces far from its cause -- as an unrelated query
+ * erroring later -- so it is worth catching structurally.
+ */
+describe('transactions issue one query at a time', () => {
+  it('has no concurrent queries inside a transaction callback', () => {
+    const offenders: string[] = [];
+
+    for (const file of sourceFiles('src')) {
+      const source = stripNonCode(readFileSync(file, 'utf8'));
+
+      // Find each `tx.transaction(...)` callback body by brace matching, then
+      // look for a Promise.all of repository calls within it.
+      let index = source.indexOf('.transaction(');
+      while (index !== -1) {
+        const body = balancedFrom(source, source.indexOf('{', index));
+        if (body && /Promise\.all\(\s*\[[\s\S]{0,400}?repos\./.test(body)) {
+          offenders.push(relative(ROOT, file));
+        }
+        index = source.indexOf('.transaction(', index + 1);
+      }
+    }
+
+    expect([...new Set(offenders)]).toEqual([]);
+  });
+});
+
+/** Returns the balanced `{...}` block starting at `start`, or null. */
+function balancedFrom(source: string, start: number): string | null {
+  if (start === -1) return null;
+
+  let depth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return null;
+}

@@ -3,6 +3,7 @@ import type { Database } from '../client';
 import type { Executor } from './_ctx';
 import { createAuditRepository, createSecretRepository } from './audit';
 import { createAiRepository, createBudgetRepository } from './ai';
+import { createSourceRepository } from './sources';
 import { createExecutionHistoryRepository, createGraphRepository } from './graph';
 import {
   createAlertRepository,
@@ -52,6 +53,7 @@ export function createRepositories(db: Executor): Repositories {
     ai: createAiRepository(db),
     budgets: createBudgetRepository(db),
     secrets: createSecretRepository(db),
+    sources: createSourceRepository(db),
     executionHistory: createExecutionHistoryRepository(db),
   };
 }

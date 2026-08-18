@@ -50,6 +50,15 @@ export async function POST(request: NextRequest) {
         clock: c.clock,
         registry: JOB_REGISTRY,
         workerId: `tick-${randomUUID().slice(0, 8)}`,
+        ingest: {
+          repos: c.repos,
+          tx: c.tx,
+          clock: c.clock,
+          http: c.http,
+          adapters: c.adapters,
+          secretBox: c.secretBox,
+          userAgent: c.userAgent,
+        },
       },
       {
         maxJobs: Math.min(body.maxJobs ?? 25, 200),

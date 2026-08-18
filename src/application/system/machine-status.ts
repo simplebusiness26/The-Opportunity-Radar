@@ -51,7 +51,7 @@ export async function readMachineStatus(
     ]);
 
   const enabledProviders = await deps.repos.ai.countEnabled(ctx.workspaceId);
-  const enabledSources = deps.repos.sources ? await deps.repos.sources.countEnabled() : 0;
+  const enabledSources = await deps.repos.sources.countEnabled(ctx.workspaceId);
   const enabledSchedules = schedules.filter((schedule) => schedule.enabled).length;
 
   const mode = deriveMode({ enabledProviders, enabledSources, enabledSchedules });

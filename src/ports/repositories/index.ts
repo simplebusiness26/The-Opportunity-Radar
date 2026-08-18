@@ -1,5 +1,6 @@
 import type { AuditRepository, SecretRepository } from './audit';
 import type { AiRepository, BudgetRepository } from './ai';
+import type { SourceRepository } from './sources';
 import type { ExecutionHistoryRepository, GraphRepository } from './graph';
 import type {
   AlertRepository,
@@ -51,6 +52,7 @@ export interface Repositories {
   ai: AiRepository;
   budgets: BudgetRepository;
   secrets: SecretRepository;
+  sources: SourceRepository;
   executionHistory: ExecutionHistoryRepository;
 
   /**
@@ -58,7 +60,6 @@ export interface Repositories {
    * which only needs a count can ask honestly whether the capability exists at
    * all, rather than a stub reporting a fabricated zero as if it were real.
    */
-  sources?: CountableRepository;
 }
 
 export interface CountableRepository {
@@ -83,3 +84,5 @@ export * from './ops';
 export * from './graph';
 
 export * from './ai';
+
+export * from './sources';

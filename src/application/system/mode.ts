@@ -14,7 +14,7 @@ export async function readModeStatus(
   workspaceId: string,
 ): Promise<ModeStatus> {
   const enabledProviders = await repos.ai.countEnabled(workspaceId);
-  const enabledSources = repos.sources ? await repos.sources.countEnabled() : 0;
+  const enabledSources = await repos.sources.countEnabled(workspaceId);
   const enabledSchedules = await repos.schedules.countEnabled(workspaceId);
 
   return deriveMode({ enabledProviders, enabledSources, enabledSchedules });

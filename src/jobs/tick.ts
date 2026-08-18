@@ -4,6 +4,7 @@ import { projectEvents, type ProjectionResult } from './event-router';
 import type { Clock } from '../ports/clock';
 import type { Repositories, Transactor } from '../ports/repositories/index';
 import type { JobRegistry } from './types';
+import type { IngestDeps } from '../application/sources/ingest';
 
 export interface TickResult {
   scheduler: SchedulerResult;
@@ -28,6 +29,7 @@ export async function tick(
     clock: Clock;
     registry: JobRegistry;
     workerId: string;
+    ingest?: IngestDeps;
     random?: () => number;
   },
   options: { maxJobs?: number; budgetMs?: number } = {},

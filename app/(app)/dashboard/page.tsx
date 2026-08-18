@@ -171,6 +171,7 @@ export default async function DashboardPage() {
               [
                 { href: '/brief', label: 'Daily brief' },
                 { href: '/intelligence', label: 'Our capability' },
+                { href: '/sources', label: 'Sources' },
                 { href: '/system', label: 'Machine' },
                 { href: '/settings', label: 'Settings' },
               ] as const

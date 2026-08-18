@@ -1,0 +1,23 @@
+{
+  "note": "A recorded Algolia response, trimmed. Real shape, invented content.",
+  "hits": [
+    {
+      "objectID": "39001234",
+      "title": "Restaurants are losing thousands a year to no-shows",
+      "url": "https://example.com/no-shows",
+      "author": "diner_ops",
+      "created_at": "2026-08-10T09:12:00.000Z",
+      "points": 84,
+      "story_text": "We run three sites and lose four or five covers every Friday to people who book and never turn up. We pay $180/month for a booking system that still cannot take a deposit."
+    },
+    {
+      "objectID": "39001299",
+      "comment_text": "Is there software that automatically takes a deposit at booking? Everything I have tried makes you chase the customer manually.",
+      "story_title": "Ask HN: restaurant tooling",
+      "author": "smallrestaurant",
+      "created_at": "2026-08-11T14:02:00.000Z",
+      "points": 12
+    }
+  ],
+  "nbPages": 1
+}

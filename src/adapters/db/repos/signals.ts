@@ -36,6 +36,25 @@ function toSignalRow(row: Row): SignalRow {
 
 export function createSignalRepository(db: Executor): SignalRepository {
   return {
+    async findByExternalId(workspaceId, sourceId, externalId) {
+      const rows = await db
+        .select()
+        .from(signals)
+        .where(
+          and(
+            eq(signals.workspaceId, workspaceId),
+            eq(signals.sourceId, sourceId),
+            eq(signals.externalId, externalId),
+          ),
+        )
+        .limit(1);
+      return rows[0] ? toSignalRow(rows[0]) : null;
+    },
+
+    async touchObserved(signalId, observedAt) {
+      await db.update(signals).set({ updatedAt: observedAt }).where(eq(signals.id, signalId));
+    },
+
     async insert(workspaceId, input: NewSignal & { computed: ComputedSignalFields }) {
       const [row] = await db
         .insert(signals)

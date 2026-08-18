@@ -16,7 +16,12 @@ export interface DbHandle {
  * PGlite wire server (`npm run db:up`); in production it points at a real
  * PostgreSQL instance. No branch in the code distinguishes them.
  */
-export function createDb(databaseUrl: string, poolMax = 10): DbHandle {
+/**
+ * One connection by default. The embedded development database serves every
+ * client from a single backend, so concurrent transactions across connections
+ * are not safe there; a real PostgreSQL server should raise this.
+ */
+export function createDb(databaseUrl: string, poolMax = 1): DbHandle {
   const pool = new pg.Pool({
     connectionString: databaseUrl,
     max: poolMax,
@@ -44,7 +49,7 @@ export function createDb(databaseUrl: string, poolMax = 10): DbHandle {
  */
 const globalRef = globalThis as { __radarDb?: DbHandle };
 
-export function sharedDb(databaseUrl: string, poolMax = 10): DbHandle {
+export function sharedDb(databaseUrl: string, poolMax = 1): DbHandle {
   globalRef.__radarDb ??= createDb(databaseUrl, poolMax);
   return globalRef.__radarDb;
 }

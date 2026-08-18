@@ -34,7 +34,22 @@ async function main(): Promise<void> {
   while (running) {
     try {
       const result = await tick(
-        { repos: c.repos, tx: c.tx, clock: c.clock, registry: JOB_REGISTRY, workerId },
+        {
+          repos: c.repos,
+          tx: c.tx,
+          clock: c.clock,
+          registry: JOB_REGISTRY,
+          workerId,
+          ingest: {
+            repos: c.repos,
+            tx: c.tx,
+            clock: c.clock,
+            http: c.http,
+            adapters: c.adapters,
+            secretBox: c.secretBox,
+            userAgent: c.userAgent,
+          },
+        },
         { maxJobs: c.env.RADAR_WORKER_CONCURRENCY * 5, budgetMs: 20_000 },
       );
 

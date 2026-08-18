@@ -25,6 +25,12 @@ export const DEFAULT_SCHEDULES = [
     description: 'Reclaims work whose worker stopped reporting.',
   },
   {
+    key: 'sources.poll',
+    cron: '*/15 * * * *',
+    jobKind: 'sources.poll',
+    description: 'Checks which sources are due a scan. Harmless with none configured.',
+  },
+  {
     key: 'cluster.assign',
     cron: '17 * * * *',
     jobKind: 'cluster.assign',

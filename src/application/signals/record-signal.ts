@@ -59,8 +59,11 @@ export interface SignalDeps {
 
 export interface RecordSignalResult {
   signal: SignalRow;
-  /** Whether this became new evidence or joined something already known. */
-  outcome: 'new_evidence' | 'corroborates_existing' | 'duplicate';
+  /**
+   * Whether this became new evidence, joined something already known, or was
+   * simply the same source item read again.
+   */
+  outcome: 'new_evidence' | 'corroborates_existing' | 'duplicate' | 'already_read';
   evidenceUnitId: string;
   dedupeReason: string;
   explanation: string;
@@ -105,6 +108,32 @@ export async function recordSignal(
     now,
     halfLifeDaysOverride: null,
   });
+
+  /*
+   * A source re-read is not new evidence, and not even a new mention: it is the
+   * same observation seen again. Sources are polled repeatedly by design, so
+   * without this every poll would either violate the uniqueness constraint or,
+   * worse, inflate the mention count with copies of one observation.
+   */
+  if (parsed.sourceId && parsed.externalId) {
+    const existing = await deps.repos.signals.findByExternalId(
+      ctx.workspaceId,
+      parsed.sourceId,
+      parsed.externalId,
+    );
+
+    if (existing) {
+      await deps.repos.signals.touchObserved(existing.id, now);
+      return {
+        signal: existing,
+        evidenceUnitId: existing.evidenceUnitId ?? '',
+        outcome: 'already_read',
+        dedupeReason: 'source_item_id',
+        explanation:
+          'Already read from this source. Polling the same item again is the same observation, so nothing was added.',
+      };
+    }
+  }
 
   return deps.tx.transaction(async (repos) => {
     const entityRecords = await repos.entities.upsertMany(
@@ -207,10 +236,12 @@ export async function recordSignal(
 
     // The three headline counts are recomputed from the mentions themselves
     // rather than incremented, so they can never drift out of step.
-    const [mentions, affiliations] = await Promise.all([
-      repos.evidence.mentionsFor([evidenceUnitId]),
-      repos.evidence.affiliations(ctx.workspaceId),
-    ]);
+    //
+    // Sequential, not concurrent: these run inside a transaction and therefore
+    // share one connection. Two queries in flight on the same connection
+    // interleave their protocol messages and desynchronise it.
+    const mentions = await repos.evidence.mentionsFor([evidenceUnitId]);
+    const affiliations = await repos.evidence.affiliations(ctx.workspaceId);
     const counts = computeEvidenceCounts(mentions, affiliations);
     await repos.evidence.refreshCounts(evidenceUnitId, {
       mentionCount: counts.rawMentions,

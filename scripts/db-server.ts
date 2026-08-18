@@ -26,6 +26,10 @@ const HOST = process.env.RADAR_DB_HOST ?? '127.0.0.1';
 // PGlite has a single backend; the socket server multiplexes clients over it and
 // queues at the query level. Connections must exceed the sum of every pool that
 // connects concurrently (app + worker + test runner), or clients get dropped.
+//
+// Note that multiplexing does not make concurrent transactions safe: two
+// connections interleaving on one backend desynchronise the wire protocol.
+// Clients therefore run a single connection each (see DATABASE_POOL_MAX).
 const MAX_CONNECTIONS = Number(process.env.RADAR_DB_MAX_CONNECTIONS ?? 40);
 
 async function main(): Promise<void> {

@@ -3,6 +3,8 @@ import { scryptPasswordHasher } from '../adapters/crypto/password';
 import { createInMemoryRateLimiter } from '../adapters/crypto/rate-limiter';
 import { createSecretBox, unavailableSecretBox } from '../adapters/crypto/secret-box';
 import { sha256, tokenService } from '../adapters/crypto/tokens';
+import { createSafeFetcher } from '../adapters/http/safe-fetcher';
+import { ADAPTER_REGISTRY } from '../adapters/sources/registry';
 import { createRepositories, createTransactor } from '../adapters/db/repos/index';
 import { sharedDb, type DbHandle } from '../adapters/db/client';
 import type { Clock } from '../ports/clock';
@@ -11,7 +13,9 @@ import type { RateLimiter } from '../ports/rate-limiter';
 import { scaledLimits } from '../domain/auth/rate-limit';
 import type { RateLimitName, RateLimitPolicy } from '../domain/auth/rate-limit';
 import type { Repositories, Transactor } from '../ports/repositories/index';
+import type { HttpFetcher } from '../ports/http';
 import type { SecretBox } from '../ports/secret-box';
+import type { SourceAdapter } from '../ports/source-adapter';
 import { env, type Env } from './env';
 
 /**
@@ -29,9 +33,18 @@ export interface Container {
   passwords: PasswordHasher;
   tokens: TokenService;
   secretBox: SecretBox;
+  http: HttpFetcher;
+  adapters: Map<string, SourceAdapter>;
+  userAgent: string;
   ipSalt: string;
   singleOwner: boolean;
 }
+
+/**
+ * Identifies Radar to the sites it reads, with a contact address. A crawler
+ * that will not say who it is deserves to be blocked.
+ */
+const USER_AGENT = 'OpportunityRadar/1.0 (+https://github.com/simplebusiness26/The-Opportunity-Radar)';
 
 export function buildContainer(config: Env = env()): Container {
   const clock = clockFromEnv(config.RADAR_CLOCK);
@@ -52,6 +65,9 @@ export function buildContainer(config: Env = env()): Container {
     secretBox: config.RADAR_SECRET_KEY
       ? createSecretBox(config.RADAR_SECRET_KEY)
       : unavailableSecretBox(),
+    http: createSafeFetcher({ clock, userAgent: USER_AGENT }),
+    adapters: ADAPTER_REGISTRY,
+    userAgent: USER_AGENT,
     // Derived from the secret key so address hashes are stable for one
     // deployment and not comparable across deployments.
     ipSalt: sha256(config.RADAR_SECRET_KEY ?? config.DATABASE_URL).slice(0, 32),

@@ -1,0 +1,28 @@
+{
+  "note": "A recorded GitHub issue-search response, trimmed. Real shape, invented content.",
+  "total_count": 2,
+  "items": [
+    {
+      "id": 2100001,
+      "number": 412,
+      "title": "Deposits cannot be taken without a manual workaround",
+      "body": "Every booking that needs a deposit has to be handled by hand in a spreadsheet. We spend about 6 hours a week on this.",
+      "html_url": "https://github.com/example/bookings/issues/412",
+      "user": { "login": "ops-lead" },
+      "created_at": "2026-08-09T10:00:00Z",
+      "repository_url": "https://api.github.com/repos/example/bookings",
+      "reactions": { "total_count": 14 }
+    },
+    {
+      "id": 2100002,
+      "number": 87,
+      "title": "Add webhook for payment authorisation",
+      "body": "Now that the payments API supports delayed capture this is finally possible.",
+      "html_url": "https://github.com/example/payments/issues/87",
+      "user": { "login": "dev-one" },
+      "created_at": "2026-08-11T08:30:00Z",
+      "repository_url": "https://api.github.com/repos/example/payments",
+      "reactions": { "total_count": 3 }
+    }
+  ]
+}

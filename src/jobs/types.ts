@@ -1,6 +1,7 @@
 import type { Clock } from '../ports/clock';
 import type { Repositories, Transactor } from '../ports/repositories/index';
 import type { JobRow } from '../ports/repositories/ops';
+import type { IngestDeps } from '../application/sources/ingest';
 
 /**
  * What a handler is given, and what it may do.
@@ -14,6 +15,12 @@ export interface JobContext {
   repos: Repositories;
   tx: Transactor;
   clock: Clock;
+  /**
+   * Present only in a worker built with network access. A worker without it
+   * simply holds ingestion work rather than failing it, so a deployment that
+   * deliberately runs no fetching is a supported configuration.
+   */
+  ingest?: IngestDeps;
   /** Extends the lease. Long handlers must call this or the reaper reclaims them. */
   heartbeat(): Promise<void>;
   /** Persists partial progress. Survives a crash; the retry resumes from it. */

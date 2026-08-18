@@ -11,7 +11,9 @@ export const TEST_DATABASE_URL =
 let handle: DbHandle | undefined;
 
 export function testDb(): DbHandle {
-  handle ??= createDb(TEST_DATABASE_URL, 4);
+  // One connection: see createDb. Concurrency in the tests is exercised
+  // through the queue's own claim semantics, not by racing the driver.
+  handle ??= createDb(TEST_DATABASE_URL, 1);
   return handle;
 }
 

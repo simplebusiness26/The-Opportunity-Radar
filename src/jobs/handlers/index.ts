@@ -3,7 +3,8 @@ import { rescoreOpportunity } from '../../application/opportunities/score-opport
 import { generateBrief } from '../../application/system/brief';
 import { evaluateAlerts } from '../../application/system/alerts';
 import { refreshEvidenceStrength } from '../../application/system/decay-refresh';
-import { defineJobs, type JobContext } from '../types';
+import { ingestSource } from '../../application/sources/ingest';
+import { defineJobs, JobBlocked, type JobContext } from '../types';
 import { projectEvents } from '../event-router';
 
 /**
@@ -29,6 +30,65 @@ function deps(context: JobContext) {
 }
 
 export const JOB_REGISTRY = defineJobs([
+  {
+    kind: 'source.scan',
+    description: 'Fetches from one configured source and records what was new.',
+    timeoutSec: 300,
+    requires: 'sources',
+    handler: async (context) => {
+      const sourceId = String(context.job.payload.sourceId ?? '');
+      if (!sourceId) return { detail: { skipped: 'no source identified' } };
+
+      const ingest = context.ingest;
+      if (!ingest) {
+        throw new JobBlocked(
+          'Ingestion is not available in this worker.',
+          'Run the worker built with the ingestion dependencies.',
+        );
+      }
+
+      const result = await ingestSource(ingest, systemCtx(context), sourceId, {
+        runId: context.job.runId ?? undefined,
+      });
+
+      if (result.status === 'not_configured') {
+        // Held rather than failed: the source is waiting for the owner, and it
+        // resumes as soon as the missing setting arrives.
+        throw new JobBlocked(result.message, result.remedy ?? 'Complete the source settings.');
+      }
+
+      return {
+        detail: {
+          source: result.sourceName,
+          seen: result.itemsSeen,
+          newEvidence: result.newEvidence,
+          duplicates: result.duplicates,
+        },
+      };
+    },
+  },
+  {
+    kind: 'sources.poll',
+    description: 'Enqueues a scan for every source that is due one.',
+    timeoutSec: 60,
+    handler: async (context) => {
+      const due = await context.repos.sources.listDue(context.clock.now(), 25);
+
+      let enqueued = 0;
+      for (const source of due) {
+        const job = await context.repos.jobs.enqueue(source.workspaceId, {
+          kind: 'source.scan',
+          payload: { sourceId: source.id },
+          // One scan per source at a time, however often polling runs.
+          dedupeKey: `source.scan:${source.id}`,
+          runId: context.job.runId,
+        });
+        if (job) enqueued += 1;
+      }
+
+      return { detail: { due: due.length, enqueued } };
+    },
+  },
   {
     kind: 'events.project',
     description: 'Consumes the domain event outbox and enqueues the work each event causes.',
