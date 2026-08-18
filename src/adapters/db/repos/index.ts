@@ -10,6 +10,7 @@ import {
   createValidationRepository,
 } from './investigation';
 import { createExecutionHistoryRepository, createGraphRepository } from './graph';
+import { createHandoffRepository } from './execution';
 import { createRelationshipRepository, createTriggerRepository } from './memory';
 import {
   createAlertRepository,
@@ -39,6 +40,7 @@ export function createRepositories(db: Executor): Repositories {
   return {
     users: createUserRepository(db),
     triggers: createTriggerRepository(db),
+    handoffs: createHandoffRepository(db),
     relationships: createRelationshipRepository(db),
     sessions: createSessionRepository(db),
     tenancy: createTenancyRepository(db),

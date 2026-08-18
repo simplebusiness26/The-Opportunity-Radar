@@ -1,5 +1,6 @@
 import type { IngestDeps } from '../application/sources/ingest';
 import type { AskDeps } from '../pipeline/ask/answer';
+import type { DeliverDeps } from '../application/execution/deliver';
 import type { InvestigationDeps } from '../pipeline/investigations/runner';
 import { deterministicNonce, randomNonce, type NonceSource } from '../pipeline/prompts/nonce';
 import { aiGateway } from './ai';
@@ -15,6 +16,7 @@ import type { Container } from './container';
 export interface JobDependencies {
   ingest: IngestDeps;
   investigation: InvestigationDeps;
+  delivery: DeliverDeps;
 }
 
 export function jobDependencies(c: Container): JobDependencies {
@@ -27,6 +29,13 @@ export function jobDependencies(c: Container): JobDependencies {
       adapters: c.adapters,
       secretBox: c.secretBox,
       userAgent: c.userAgent,
+    },
+    delivery: {
+      repos: c.repos,
+      tx: c.tx,
+      clock: c.clock,
+      http: c.http,
+      secretBox: c.secretBox,
     },
     investigation: {
       repos: c.repos,

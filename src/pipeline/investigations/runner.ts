@@ -243,18 +243,11 @@ export async function investigateOpportunity(
   // Counter-evidence and resolved unknowns both change the score, so it is
   // recomputed here rather than waiting for the next nightly pass.
   if (runs.some((run) => run.status === 'complete')) {
+    // No context is passed: the scoring input reads the competitor counts and
+    // the recorded unknowns from the same stored rows this run just wrote, so
+    // every caller computes the same score.
     await rescoreOpportunity(deps, ctx, opportunityId, {
       cause: counterEvidence > 0 ? 'counter_evidence' : 'new_evidence',
-      context: {
-        market: {
-          competitorCount: verdictSummary.competitorCount,
-          freeAlternativeCount: verdictSummary.freeAlternativeCount,
-        },
-        uncertainty: {
-          criticalUnknownCount: verdictSummary.criticalUnknownCount,
-          assumptionCount: verdictSummary.assumptionCount,
-        },
-      },
     });
   }
 

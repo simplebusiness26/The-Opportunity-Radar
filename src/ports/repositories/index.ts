@@ -7,6 +7,7 @@ import type {
   ValidationRepository,
 } from './investigation';
 import type { ExecutionHistoryRepository, GraphRepository } from './graph';
+import type { HandoffRepository } from './execution';
 import type { RelationshipRepository, TriggerRepository } from './memory';
 import type {
   AlertRepository,
@@ -64,6 +65,7 @@ export interface Repositories {
   validation: ValidationRepository;
   executionHistory: ExecutionHistoryRepository;
   triggers: TriggerRepository;
+  handoffs: HandoffRepository;
   relationships: RelationshipRepository;
 
   /**
@@ -101,3 +103,5 @@ export * from './sources';
 export * from './investigation';
 
 export * from './memory';
+
+export * from './execution';

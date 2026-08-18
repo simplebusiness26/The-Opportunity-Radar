@@ -76,7 +76,7 @@ describe('the internal intelligence graph', () => {
     expect(result.taxonomyKey).toBe('platform.auth');
     expect(result.unresolvedWarning).toBeNull();
 
-    const owned = await readOwnedCapabilities(deps, ctx);
+    const owned = await readOwnedCapabilities(deps.repos, ctx.workspaceId);
     expect(owned).toHaveLength(1);
     expect(owned[0]?.assetNames).toEqual(expect.arrayContaining(['radar-auth', 'session-kit']));
   });
@@ -97,7 +97,7 @@ describe('the internal intelligence graph', () => {
     // estimate that touched it, so it is stored and flagged instead.
     expect(result.taxonomyKey).toBeNull();
     expect(result.unresolvedWarning).toContain('will not count towards build leverage');
-    expect(await readOwnedCapabilities(deps, ctx)).toHaveLength(0);
+    expect(await readOwnedCapabilities(deps.repos, ctx.workspaceId)).toHaveLength(0);
   });
 
   it('carries reuse readiness through to the leverage estimate', async () => {
@@ -120,7 +120,7 @@ describe('the internal intelligence graph', () => {
       notes: null,
     });
 
-    const owned = await readOwnedCapabilities(deps, ctx);
+    const owned = await readOwnedCapabilities(deps.repos, ctx.workspaceId);
     expect(owned[0]?.reuseReadiness).toBe('drop_in');
   });
 });

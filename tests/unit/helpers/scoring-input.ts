@@ -57,6 +57,14 @@ export function scoringInput(over: Partial<ScoringInput> = {}): ScoringInput {
       competitorMoving: null,
       ...over.timing,
     },
+    validation: {
+      concludedExperiments: 0,
+      validatedCount: 0,
+      partiallyValidatedCount: 0,
+      inconclusiveCount: 0,
+      rejectedCount: 0,
+      ...over.validation,
+    },
     calibration: {
       sampleSize: 0,
       confidenceBias: null,

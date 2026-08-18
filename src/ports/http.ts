@@ -10,6 +10,8 @@ export interface FetchRequest {
   method?: 'GET' | 'POST';
   /** Form-encoded body, for token endpoints. Only used with POST. */
   form?: Record<string, string>;
+  /** JSON body, for delivering a payload to a configured endpoint. POST only. */
+  json?: unknown;
   headers?: Record<string, string>;
   /** Purpose, recorded against the fetch for provenance. */
   reason?: string;

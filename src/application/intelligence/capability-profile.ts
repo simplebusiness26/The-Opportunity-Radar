@@ -213,10 +213,10 @@ export async function recordGoal(
 
 /** What the team currently has, in the shape the leverage engine consumes. */
 export async function readOwnedCapabilities(
-  deps: IntelligenceDeps,
-  ctx: ActorCtx,
+  repos: Repositories,
+  workspaceId: string,
 ): Promise<OwnedCapability[]> {
-  const rows = await deps.repos.graph.listCapabilities(ctx.workspaceId);
+  const rows = await repos.graph.listCapabilities(workspaceId);
   return rows.map((row) => ({
     taxonomyKey: row.taxonomyKey,
     maturity: row.maturity,
@@ -250,7 +250,7 @@ export async function assessOpportunityFit(
 
   const [requirements, owned, resources, goals] = await Promise.all([
     deps.repos.opportunities.capabilityRequirements(opportunityId),
-    readOwnedCapabilities(deps, ctx),
+    readOwnedCapabilities(deps.repos, ctx.workspaceId),
     deps.repos.graph.listResources(ctx.workspaceId),
     deps.repos.graph.listGoals(ctx.workspaceId),
   ]);

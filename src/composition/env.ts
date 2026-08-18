@@ -35,6 +35,12 @@ const envSchema = z.object({
     .default('true')
     .transform((value) => value === 'true'),
   RADAR_TICK_TOKEN: z.string().min(16).optional(),
+  /**
+   * Lets whoever built a handed-off opportunity report the outcome back.
+   * Separate from the tick token on purpose: the two are given to different
+   * parties, and neither should imply the other.
+   */
+  RADAR_FEEDBACK_TOKEN: z.string().min(16).optional(),
   RADAR_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
   RADAR_CLOCK: z.string().optional(),
   /** Multiplies every rate limit. See docs/SECURITY.md before raising it. */

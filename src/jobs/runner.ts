@@ -3,6 +3,7 @@ import type { Clock } from '../ports/clock';
 import type { Repositories, Transactor } from '../ports/repositories/index';
 import type { IngestDeps } from '../application/sources/ingest';
 import type { InvestigationDeps } from '../pipeline/investigations/runner';
+import type { DeliverDeps } from '../application/execution/deliver';
 import { JobBlocked, JobPermanentFailure, type JobContext, type JobRegistry } from './types';
 
 export interface RunnerDeps {
@@ -15,6 +16,8 @@ export interface RunnerDeps {
   ingest?: IngestDeps;
   /** Supplied by workers allowed to spend money on analysis. */
   investigation?: InvestigationDeps;
+  /** Supplied by workers allowed to deliver a handoff onward. */
+  delivery?: DeliverDeps;
   /** Injected so retry timing is deterministic under test. */
   random?: () => number;
 }
@@ -57,6 +60,7 @@ export async function runOneJob(deps: RunnerDeps): Promise<'idle' | 'completed' 
     clock: deps.clock,
     ingest: deps.ingest,
     investigation: deps.investigation,
+    delivery: deps.delivery,
     heartbeat: () =>
       deps.repos.jobs.heartbeat(job.id, deps.clock.now(), definition.timeoutSec ?? job.timeoutSec),
     checkpoint: (state) => deps.repos.jobs.saveCheckpoint(job.id, state),

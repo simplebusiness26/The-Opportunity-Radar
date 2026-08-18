@@ -16,6 +16,10 @@ import {
   suggestRelationships,
 } from '../../../../src/application/memory/relationships';
 import { listTriggers, proposeTriggers } from '../../../../src/application/memory/triggers';
+import { HandoffPanel } from '../../../../src/web/components/handoff-panel';
+import { buildExecutionBrief } from '../../../../src/application/execution/brief';
+import { readFactoryTarget } from '../../../../src/application/execution/handoff';
+import { can } from '../../../../src/domain/types/permissions';
 import { readRequestContext, requireWorkspacePage } from '../../../../src/web/http/context';
 import { container } from '../../../../src/composition/container';
 
@@ -39,12 +43,16 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   ]);
 
   const memoryDeps = { repos: c.repos, tx: c.tx, clock: c.clock };
-  const [relationships, suggestions, triggers, proposals] = await Promise.all([
-    readRelationships(c.repos, ctx, id),
-    suggestRelationships(c.repos, ctx, id),
-    listTriggers(memoryDeps, ctx, id),
-    proposeTriggers(memoryDeps, ctx, id),
-  ]);
+  const [relationships, suggestions, triggers, proposals, briefResult, handoffs, factoryTarget] =
+    await Promise.all([
+      readRelationships(c.repos, ctx, id),
+      suggestRelationships(c.repos, ctx, id),
+      listTriggers(memoryDeps, ctx, id),
+      proposeTriggers(memoryDeps, ctx, id),
+      buildExecutionBrief(memoryDeps, ctx, id),
+      c.repos.handoffs.list(ctx.workspaceId, { opportunityId: id }),
+      readFactoryTarget(c.repos, ctx.workspaceId),
+    ]);
 
   const snapshot = score?.inputsSnapshot as
     | { evidence?: { rawMentions: number; uniqueEvidence: number; independentSources: number } }
@@ -224,6 +232,15 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       </Panel>
 
       <InvestigationLogPanels log={investigation} aiConfigured={mode.mode !== 'manual'} />
+
+      <HandoffPanel
+        opportunityId={opportunity.id}
+        brief={briefResult.brief}
+        handoffs={handoffs}
+        target={factoryTarget}
+        canDecide={can(ctx, 'opportunities.decide')}
+        csrfToken={session?.csrfSecret ?? ''}
+      />
 
       <MemoryPanels
         opportunityId={opportunity.id}

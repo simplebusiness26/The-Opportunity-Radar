@@ -7,6 +7,7 @@ import { ingestSource } from '../../application/sources/ingest';
 import { investigateOpportunity } from '../../pipeline/investigations/runner';
 import { decideDepth } from '../../domain/investigation/policy';
 import { evaluateTriggers } from '../../application/memory/triggers';
+import { deliverHandoff } from '../../application/execution/deliver';
 import { defineJobs, JobBlocked, type JobContext } from '../types';
 import { projectEvents } from '../event-router';
 
@@ -334,6 +335,34 @@ export const JOB_REGISTRY = defineJobs([
           reopened: result.fired.filter((entry) => entry.reopened).length,
         },
       };
+    },
+  },
+  {
+    kind: 'handoff.deliver',
+    description: 'Sends a prepared handoff to wherever the owner pointed it.',
+    timeoutSec: 120,
+    requires: 'none',
+    handler: async (context) => {
+      const handoffId = String(context.job.payload.handoffId ?? '');
+      if (!handoffId) return { detail: { skipped: 'no handoff identified' } };
+
+      const delivery = context.delivery;
+      if (!delivery) {
+        throw new JobBlocked(
+          'Delivery is not available in this worker.',
+          'Run the worker built with network access, or export the brief by hand.',
+        );
+      }
+
+      const result = await deliverHandoff(delivery, systemCtx(context), handoffId);
+
+      if (result.status === 'failed') {
+        // A real failure: retried with backoff, because the receiving system
+        // being briefly down is the ordinary case.
+        throw new Error(result.message);
+      }
+
+      return { detail: { status: result.status, message: result.message } };
     },
   },
 ]);

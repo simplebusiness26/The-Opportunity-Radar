@@ -29,6 +29,15 @@ export const SINGLE_SOURCE_CEILING = 0.45;
 export const UNMEASURED_DECISIVE_CEILING = 0.5;
 
 /**
+ * No amount of evidence makes a forecast about the future certain.
+ *
+ * Without this the arithmetic can reach 100%, and a system whose entire claim
+ * is calibrated honesty must never display that number. The residual is not
+ * modesty; it is the part of the world nobody has observed yet.
+ */
+export const MAXIMUM_CONFIDENCE = 0.95;
+
+/**
  * Dimensions a thesis cannot be confidently held without.
  *
  * Confidence is confidence in the *thesis*, not in the pile of evidence. Twelve
@@ -111,6 +120,38 @@ export function computeConfidence(
         : 'No critical unknowns are outstanding.',
   });
 
+  /*
+   * Real-world results move confidence more than anything gathered by reading,
+   * because they are the only input that observed behaviour rather than
+   * reported it. An inconclusive experiment moves nothing: rewarding activity
+   * over evidence is exactly what this product exists not to do.
+   */
+  const validation = input.validation;
+  if (validation.concludedExperiments > 0) {
+    const contribution =
+      validation.rejectedCount > 0
+        ? -0.35
+        : validation.validatedCount > 0
+          ? 0.25
+          : validation.partiallyValidatedCount > 0
+            ? 0.1
+            : 0;
+
+    factors.push({
+      key: 'real_world_result',
+      label: 'Tested against real people',
+      contribution,
+      note:
+        validation.rejectedCount > 0
+          ? `${validation.rejectedCount} experiment(s) came back negative.`
+          : validation.validatedCount > 0
+            ? `${validation.validatedCount} experiment(s) supported the thesis against real people.`
+            : validation.partiallyValidatedCount > 0
+              ? 'An experiment partly supported the thesis.'
+              : 'The experiments run so far settled nothing, so confidence is unchanged by them.',
+    });
+  }
+
   let value = clamp(0.15 + factors.reduce((sum, factor) => sum + factor.contribution, 0));
 
   // Calibration only adjusts once there is enough history to mean anything.
@@ -142,7 +183,8 @@ export function computeConfidence(
   }
 
   const cap = applyCaps(input, value, unmeasuredDecisive);
-  const finalValue = cap.ceiling !== null ? Math.min(value, cap.ceiling) : value;
+  const capped = cap.ceiling !== null ? Math.min(value, cap.ceiling) : value;
+  const finalValue = Math.min(capped, MAXIMUM_CONFIDENCE);
 
   return {
     value: finalValue,

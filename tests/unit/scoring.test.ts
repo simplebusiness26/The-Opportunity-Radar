@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DIMENSIONS } from '../../src/domain/scoring/dimensions';
 import { diffScores, digestInput, scoreOpportunity } from '../../src/domain/scoring/engine';
-import { NO_INDEPENDENT_SOURCE_CEILING, SINGLE_SOURCE_CEILING } from '../../src/domain/scoring/confidence';
+import {
+  MAXIMUM_CONFIDENCE,
+  NO_INDEPENDENT_SOURCE_CEILING,
+  SINGLE_SOURCE_CEILING,
+} from '../../src/domain/scoring/confidence';
 import { scoringInput } from './helpers/scoring-input';
 
 describe('dimension registry', () => {
@@ -383,5 +387,119 @@ describe('explaining change', () => {
       },
     });
     expect(diffScores(scoreOpportunity(input), scoreOpportunity(input))).toEqual([]);
+  });
+});
+
+describe('real-world results', () => {
+  const validation = (overrides: Partial<{
+    concludedExperiments: number;
+    validatedCount: number;
+    partiallyValidatedCount: number;
+    inconclusiveCount: number;
+    rejectedCount: number;
+  }>) =>
+    scoringInput({
+      // Enough independent evidence that the confidence cap is not what is
+      // being measured here.
+      evidence: {
+        rawMentions: 12,
+        uniqueEvidence: 8,
+        independentSources: 4,
+        sourceDiversity: 0.8,
+        aiDerivedMentions: 0,
+        strengthByType: { spending: 4, pain: 3 },
+        countByClass: { direct_customer: 4, primary: 4 },
+        freshness: 1,
+        counterEvidenceCount: 0,
+        counterEvidenceStrength: 0,
+      },
+      // The decisive dimensions are measured, so the unmeasured-decisive
+      // ceiling is not what is being tested here either.
+      market: {
+        competitorCount: 3,
+        freeAlternativeCount: 1,
+        competitorWeaknessCount: 2,
+        observedMonthlySpend: [120, 180],
+        momentum30d: 0.2,
+      },
+      validation: {
+        concludedExperiments: 0,
+        validatedCount: 0,
+        partiallyValidatedCount: 0,
+        inconclusiveCount: 0,
+        rejectedCount: 0,
+        ...overrides,
+      },
+    });
+
+  it('says nothing has been tested when no experiment has concluded', () => {
+    const result = scoreOpportunity(validation({}));
+    const dimension = result.dimensions.find((entry) => entry.key === 'real_world_result');
+
+    expect(dimension?.status).toBe('insufficient_evidence');
+  });
+
+  it('raises confidence when real customers behaved as predicted', () => {
+    const before = scoreOpportunity(validation({}));
+    const after = scoreOpportunity(validation({ concludedExperiments: 1, validatedCount: 1 }));
+
+    expect(after.confidence.value).toBeGreaterThan(before.confidence.value);
+    expect(after.confidence.factors.some((factor) => factor.key === 'real_world_result')).toBe(true);
+  });
+
+  it('lets a negative result dominate an earlier partial success', () => {
+    const result = scoreOpportunity(
+      validation({ concludedExperiments: 2, partiallyValidatedCount: 1, rejectedCount: 1 }),
+    );
+    const dimension = result.dimensions.find((entry) => entry.key === 'real_world_result');
+
+    expect(dimension?.normalised).toBe(0);
+    expect(dimension?.explanation).toContain('strongest evidence available');
+  });
+
+  it('does not reward running an experiment that settled nothing', () => {
+    const before = scoreOpportunity(validation({}));
+    const after = scoreOpportunity(validation({ concludedExperiments: 1, inconclusiveCount: 1 }));
+
+    // Rewarding activity over evidence is exactly the failure this avoids.
+    expect(after.confidence.value).toBe(before.confidence.value);
+  });
+});
+
+describe('the ceiling on certainty', () => {
+  it('never reports certainty, however strong the evidence', () => {
+    const result = scoreOpportunity(
+      scoringInput({
+        evidence: {
+          rawMentions: 500,
+          uniqueEvidence: 200,
+          independentSources: 60,
+          sourceDiversity: 1,
+          aiDerivedMentions: 0,
+          strengthByType: { spending: 90, demand: 80, pain: 70 },
+          countByClass: { direct_customer: 120, transaction: 60, primary: 20 },
+          freshness: 1,
+          counterEvidenceCount: 0,
+          counterEvidenceStrength: 0,
+        },
+        market: {
+          competitorCount: 4,
+          freeAlternativeCount: 0,
+          competitorWeaknessCount: 9,
+          observedMonthlySpend: [120, 180, 240],
+          momentum30d: 0.6,
+        },
+        validation: {
+          concludedExperiments: 4,
+          validatedCount: 4,
+          partiallyValidatedCount: 0,
+          inconclusiveCount: 0,
+          rejectedCount: 0,
+        },
+      }),
+    );
+
+    expect(result.confidence.value).toBeLessThanOrEqual(MAXIMUM_CONFIDENCE);
+    expect(result.confidence.value).toBeLessThan(1);
   });
 });

@@ -4,6 +4,8 @@ import type { EvidenceClass } from '../../domain/taxonomy/evidence-class';
 import type { SignalTypeKey } from '../../domain/taxonomy/signal-types';
 import type { ScoringInput } from '../../domain/scoring/types';
 import { computeCalibration } from '../../domain/calibration/index';
+import { estimateBuildLeverage, matchCapabilities } from '../../domain/leverage/index';
+import { readOwnedCapabilities } from '../intelligence/capability-profile';
 import type { Repositories } from '../../ports/repositories/index';
 import type { OpportunityRow } from '../../ports/repositories/opportunities';
 
@@ -23,7 +25,14 @@ import type { OpportunityRow } from '../../ports/repositories/opportunities';
  * one field should not have to invent the rest.
  */
 export type ScoringContext = {
-  [K in 'market' | 'internal' | 'economics' | 'uncertainty' | 'timing' | 'calibration']?: Partial<
+  [K in
+    | 'market'
+    | 'internal'
+    | 'economics'
+    | 'uncertainty'
+    | 'timing'
+    | 'validation'
+    | 'calibration']?: Partial<
     ScoringInput[K]
   >;
 };
@@ -82,6 +91,48 @@ export async function buildScoringInput(
 
   const calibration = computeCalibration(await repos.executionHistory.list(workspaceId, 500));
 
+  const experiments = await repos.validation.listExperiments(workspaceId, {
+    opportunityId: opportunity.id,
+  });
+  const concluded = experiments.filter((experiment) => experiment.verdict !== null);
+
+  /*
+   * Read from stored records rather than accepted from whoever called.
+   *
+   * These facts live in the investigation outputs, the uncertainty table and
+   * the validation plan, so reading them here is what makes a score the same
+   * number no matter which code path recomputed it. Passing them in as context
+   * meant a rescore triggered by an experiment produced a different answer from
+   * one triggered by the investigation runner, which is indefensible in a
+   * system whose whole claim is that its numbers are checkable.
+   */
+  const outputs = await repos.investigations.outputsFor(workspaceId, 'opportunity', opportunity.id);
+  const competitors = latestPayload(outputs, 'investigation.competitors');
+  const unknowns = await repos.uncertainty.listFor(workspaceId, opportunity.id, { openOnly: true });
+  const plan = await repos.validation.latestPlan(workspaceId, opportunity.id);
+
+  // Leverage is recomputed from the live graph rather than stored, because the
+  // answer legitimately changes when the team's capabilities do: shipping
+  // something new should make related opportunities cheaper, and the score
+  // should say so without anyone re-entering anything.
+  const [requirements, owned] = await Promise.all([
+    repos.opportunities.capabilityRequirements(opportunity.id),
+    readOwnedCapabilities(repos, workspaceId),
+  ]);
+  const leverage = estimateBuildLeverage(
+    matchCapabilities(
+      requirements.map((requirement) => ({
+        taxonomyKey: requirement.taxonomyKey,
+        label: requirement.label,
+        criticality: requirement.criticality,
+      })),
+      owned,
+    ),
+  );
+  const resources = await repos.graph.listResources(workspaceId);
+  const budget = resources.find((resource) => resource.resourceKind === 'budget');
+  const time = resources.find((resource) => resource.resourceKind === 'time');
+
   // Prices come from the evidence itself, so "people pay about this much" is a
   // claim backed by specific rows rather than an estimate.
   const observedMonthlySpend = await collectObservedSpend(repos, workspaceId, forIds);
@@ -102,36 +153,36 @@ export async function buildScoringInput(
       counterEvidenceStrength: counterStrength,
     },
     market: {
-      competitorCount: null,
-      freeAlternativeCount: null,
+      competitorCount: countOf(competitors?.competitors),
+      freeAlternativeCount: countOf(competitors?.freeAlternatives),
       competitorWeaknessCount: Math.round(strengthByType.competitor_weakness ?? 0),
       observedMonthlySpend,
       momentum30d: null,
       ...context.market,
     },
     internal: {
-      capabilityCoverage: null,
-      requiredCapabilityCount: 0,
-      missingCapabilityCount: 0,
-      reusableAssetCount: 0,
+      capabilityCoverage: requirements.length > 0 ? leverage.coverage : null,
+      requiredCapabilityCount: leverage.requiredCount,
+      missingCapabilityCount: leverage.missingCount,
+      reusableAssetCount: leverage.reusableAssets.length,
       hasDistribution: null,
       hasDomainExperience: null,
       priorRelatedOutcomes: { successes: 0, failures: 0 },
       ...context.internal,
     },
     economics: {
-      estimatedMvpDaysGreenfield: null,
-      estimatedMvpDaysLeveraged: null,
-      estimatedValidationCost: null,
-      estimatedValidationDays: null,
-      availableBudget: null,
-      availableDays: null,
+      estimatedMvpDaysGreenfield: requirements.length > 0 ? leverage.greenfieldDays : null,
+      estimatedMvpDaysLeveraged: requirements.length > 0 ? leverage.leveragedDays : null,
+      estimatedValidationCost: plan?.estimatedCost ?? null,
+      estimatedValidationDays: plan?.estimatedDays ?? null,
+      availableBudget: budget ? Math.max(0, budget.amount - budget.committed) : null,
+      availableDays: time ? Math.max(0, time.amount - time.committed) : null,
       ...context.economics,
     },
     uncertainty: {
-      criticalUnknownCount: 0,
-      resolvedUnknownCount: 0,
-      assumptionCount: 0,
+      criticalUnknownCount: unknowns.filter((item) => item.kind === 'critical_unknown').length,
+      resolvedUnknownCount: unknowns.filter((item) => item.status === 'resolved').length,
+      assumptionCount: unknowns.filter((item) => item.kind === 'assumption').length,
       ...context.uncertainty,
     },
     timing: {
@@ -140,6 +191,19 @@ export async function buildScoringInput(
       competitorMoving: null,
       ...context.timing,
     },
+    // Real-world results, kept apart from evidence collected by reading. An
+    // experiment against real people is the strongest thing Radar can know.
+    validation: {
+      concludedExperiments: concluded.length,
+      validatedCount: concluded.filter((experiment) => experiment.verdict === 'validated').length,
+      partiallyValidatedCount: concluded.filter(
+        (experiment) => experiment.verdict === 'partially_validated',
+      ).length,
+      inconclusiveCount: concluded.filter((experiment) => experiment.verdict === 'inconclusive').length,
+      rejectedCount: concluded.filter((experiment) => experiment.verdict === 'rejected').length,
+      ...context.validation,
+    },
+
     // Read from this team's own completed work. Below the minimum sample the
     // domain refuses to produce a ratio at all, so an early workspace scores
     // with unadjusted estimates rather than a correction drawn from noise.
@@ -171,4 +235,18 @@ async function collectObservedSpend(
     if (typeof monthly === 'number' && monthly > 0) amounts.push(monthly);
   }
   return amounts;
+}
+
+/** The most recent output a role produced, or null if it never ran. */
+function latestPayload(
+  outputs: Array<{ schemaKey: string; payload: Record<string, unknown> }>,
+  schemaKey: string,
+): Record<string, unknown> | null {
+  const matching = outputs.filter((output) => output.schemaKey === schemaKey);
+  return matching.length > 0 ? (matching[matching.length - 1]!.payload ?? null) : null;
+}
+
+/** A count from a stored array, or null when the role that fills it never ran. */
+function countOf(value: unknown): number | null {
+  return Array.isArray(value) ? value.length : null;
 }

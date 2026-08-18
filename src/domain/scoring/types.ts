@@ -72,6 +72,21 @@ export interface ScoringInput {
     competitorMoving: boolean | null;
   };
 
+  /**
+   * What happened when the thesis met real people.
+   *
+   * Separate from evidence collected by reading, because an experiment result
+   * is the strongest thing this system can know and must not be averaged in
+   * with forum posts.
+   */
+  validation: {
+    concludedExperiments: number;
+    validatedCount: number;
+    partiallyValidatedCount: number;
+    inconclusiveCount: number;
+    rejectedCount: number;
+  };
+
   /** Calibration from real outcomes. Absent until enough history exists. */
   calibration: {
     sampleSize: number;

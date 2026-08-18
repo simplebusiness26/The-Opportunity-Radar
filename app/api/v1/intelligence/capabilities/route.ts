@@ -14,7 +14,7 @@ const deps = () => {
 };
 
 export const GET = readRoute('intelligence.read', async ({ ctx }) =>
-  apiSuccess({ capabilities: await readOwnedCapabilities(deps(), ctx) }),
+  apiSuccess({ capabilities: await readOwnedCapabilities(deps().repos, ctx.workspaceId) }),
 );
 
 export const POST = writeRoute('intelligence.write', async ({ ctx, body }) => {

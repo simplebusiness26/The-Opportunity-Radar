@@ -483,6 +483,52 @@ export const DIMENSIONS: DimensionDefinition[] = [
     },
   },
 
+  {
+    key: 'real_world_result',
+    label: 'Result against real people',
+    composite: 'validation_efficiency',
+    description: 'What happened when the thesis was tested on actual customers.',
+    direction: 'higher_is_better',
+    // Weighted well above the desk-research dimensions on purpose: one
+    // concluded experiment is worth more than any amount of reading, and the
+    // arithmetic should say so rather than the documentation.
+    defaultWeight: 2.5,
+    compute: (input) => {
+      const validation = input.validation;
+      if (validation.concludedExperiments === 0) {
+        return insufficient('No experiment has produced a result, so nothing has been tested.');
+      }
+
+      // A rejection dominates. If real customers did not behave as predicted,
+      // an earlier partial success does not offset it.
+      if (validation.rejectedCount > 0) {
+        return ok(
+          -validation.rejectedCount,
+          0,
+          `${validation.rejectedCount} experiment(s) came back negative against real people, which is the strongest evidence available.`,
+        );
+      }
+
+      const supported = validation.validatedCount + validation.partiallyValidatedCount * 0.5;
+      if (supported === 0) {
+        return ok(
+          0,
+          0.3,
+          `${validation.inconclusiveCount} experiment(s) were inconclusive, so nothing was established either way.`,
+        );
+      }
+
+      return ok(
+        supported,
+        Math.min(1, 0.6 + supported * 0.2),
+        `${validation.validatedCount} experiment(s) supported the thesis against real people` +
+          (validation.partiallyValidatedCount > 0
+            ? `, and ${validation.partiallyValidatedCount} partly did.`
+            : '.'),
+      );
+    },
+  },
+
   // -------------------------------------------------------- strategic value
   {
     key: 'strategic_leverage',

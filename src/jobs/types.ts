@@ -3,6 +3,7 @@ import type { Repositories, Transactor } from '../ports/repositories/index';
 import type { JobRow } from '../ports/repositories/ops';
 import type { IngestDeps } from '../application/sources/ingest';
 import type { InvestigationDeps } from '../pipeline/investigations/runner';
+import type { DeliverDeps } from '../application/execution/deliver';
 
 /**
  * What a handler is given, and what it may do.
@@ -27,6 +28,8 @@ export interface JobContext {
    * investigation jobs hold rather than fail, exactly like ingestion.
    */
   investigation?: InvestigationDeps;
+  /** Present only in a worker allowed to reach the network. */
+  delivery?: DeliverDeps;
   /** Extends the lease. Long handlers must call this or the reaper reclaims them. */
   heartbeat(): Promise<void>;
   /** Persists partial progress. Survives a crash; the retry resumes from it. */

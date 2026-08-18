@@ -134,6 +134,9 @@ export function createSafeFetcher(options: SafeFetcherOptions): HttpFetcher {
     if (method === 'POST' && request.form) {
       body = new URLSearchParams(request.form).toString();
       headers['content-type'] = 'application/x-www-form-urlencoded';
+    } else if (method === 'POST' && request.json !== undefined) {
+      body = JSON.stringify(request.json);
+      headers['content-type'] = 'application/json';
     }
 
     try {

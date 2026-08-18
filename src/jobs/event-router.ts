@@ -50,6 +50,12 @@ export const EVENT_ROUTES: Record<string, EventRoute[]> = {
   'experiment.result_recorded': [
     { jobKind: 'opportunity.score', debounceOn: 'opportunityId', delaySeconds: 0, priority: 5 },
   ],
+  'opportunity.handed_off': [
+    { jobKind: 'handoff.deliver', debounceOn: 'handoffId', delaySeconds: 0, priority: 5 },
+  ],
+  'execution.outcome_recorded': [
+    { jobKind: 'opportunity.score', debounceOn: 'opportunityId', delaySeconds: 0, priority: 4 },
+  ],
   'score.changed': [
     { jobKind: 'alerts.evaluate', debounceOn: 'opportunityId', delaySeconds: 0, priority: 3 },
     { jobKind: 'brief.mark_dirty', debounceOn: 'workspace', delaySeconds: DEBOUNCE_SECONDS },
