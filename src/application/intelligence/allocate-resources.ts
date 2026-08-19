@@ -45,6 +45,12 @@ const CAPITAL_CATEGORIES = new Set<CapitalRequirementCategory>([
   'other',
 ]);
 
+const PERIOD_DAYS = {
+  week: 7,
+  month: 30,
+  quarter: 90,
+} as const;
+
 function capitalRequirement(value: unknown): CapitalRequirement | null {
   if (!value || typeof value !== 'object') return null;
   const row = value as Record<string, unknown>;
@@ -102,6 +108,16 @@ export function readCapitalPlan(
   return { currency: 'GBP', required, requirements };
 }
 
+export function availableTimeForHorizon(
+  resource: { amount: number; committed: number; period: 'week' | 'month' | 'quarter' | 'once' },
+  horizonDays: number,
+): number {
+  const availableInPeriod = Math.max(0, resource.amount - resource.committed);
+  if (resource.period === 'once') return availableInPeriod;
+
+  return availableInPeriod * (horizonDays / PERIOD_DAYS[resource.period]);
+}
+
 /**
  * Builds the list of things that could be done next, and ranks them.
  *
@@ -132,13 +148,13 @@ export async function allocateResources(
       options.daysOverride !== undefined
         ? options.daysOverride
         : time
-          ? time.amount - time.committed
+          ? availableTimeForHorizon(time, horizonDays)
           : null,
     money:
       options.budgetOverride !== undefined
         ? options.budgetOverride
         : budget
-          ? budget.amount - budget.committed
+          ? Math.max(0, budget.amount - budget.committed)
           : null,
   };
 
