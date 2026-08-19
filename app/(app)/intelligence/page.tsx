@@ -3,6 +3,7 @@ import { container } from '../../../src/composition/container';
 import { capabilityLabel } from '../../../src/domain/taxonomy/capabilities';
 import { Callout, EmptyState, Panel, PanelHeader } from '../../../src/web/ui/primitives';
 import { CapabilityForm } from '../../../src/web/components/capability-form';
+import { ResourceForm } from '../../../src/web/components/resource-form';
 import { readCalibration } from '../../../src/application/memory/execution';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,16 @@ export default async function IntelligencePage() {
     c.repos.executionHistory.list(ctx.workspaceId, 10),
   ]);
 
+  const currentTime = resources.find(
+    (resource) =>
+      resource.resourceKind === 'time' && resource.period === 'week' && resource.unit === 'days',
+  );
+  const currentBudget = resources.find(
+    (resource) =>
+      resource.resourceKind === 'budget' &&
+      resource.period === 'month' &&
+      resource.unit.toUpperCase() === 'GBP',
+  );
   const empty =
     capabilities.length === 0 && assets.length === 0 && resources.length === 0 && goals.length === 0;
 
@@ -64,7 +75,9 @@ export default async function IntelligencePage() {
               <li key={capability.nodeId} className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-ink">{capability.name}</span>
-                  <span className={`font-mono text-[0.6rem] uppercase tracking-wider ${MATURITY_TONE[capability.maturity]}`}>
+                  <span
+                    className={`font-mono text-[0.6rem] uppercase tracking-wider ${MATURITY_TONE[capability.maturity]}`}
+                  >
                     {capability.maturity.replace('_', ' ')}
                   </span>
                 </div>
@@ -117,7 +130,10 @@ export default async function IntelligencePage() {
         ) : (
           <ul className="divide-y divide-line">
             {resources.map((resource) => (
-              <li key={resource.nodeId} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+              <li
+                key={resource.nodeId}
+                className="flex items-baseline justify-between gap-3 px-4 py-2.5"
+              >
                 <span className="text-sm text-ink">{resource.name}</span>
                 <span className="font-mono text-xs text-ink-muted">
                   {resource.amount - resource.committed} of {resource.amount} {resource.unit} per{' '}
@@ -128,6 +144,14 @@ export default async function IntelligencePage() {
           </ul>
         )}
       </Panel>
+
+      <ResourceForm
+        csrfToken={session?.csrfSecret ?? ''}
+        currentTimeAmount={currentTime?.amount ?? null}
+        currentTimeCommitted={currentTime?.committed ?? 0}
+        currentBudgetAmount={currentBudget?.amount ?? null}
+        currentBudgetCommitted={currentBudget?.committed ?? 0}
+      />
 
       <Panel>
         <PanelHeader title="Goals" hint="What the next few months are for." />
@@ -151,10 +175,7 @@ export default async function IntelligencePage() {
         )}
       </Panel>
       <Panel>
-        <PanelHeader
-          title="Calibration"
-          hint="How well Radar's own estimates have held up"
-        />
+        <PanelHeader title="Calibration" hint="How well Radar's own estimates have held up" />
         <div className="space-y-3 px-4 py-3">
           {calibration.usable ? (
             <>
