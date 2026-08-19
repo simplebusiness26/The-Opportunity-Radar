@@ -73,6 +73,8 @@ export interface OsSyncResult {
   unresolvedCapabilities: Array<{ name: string; declaredAs: string }>;
 }
 
+const nameKey = (value: string) => value.trim().toLowerCase();
+
 /**
  * Imports the user's own operating picture into Radar's internal-intelligence
  * graph. The OS is evidence about what this particular owner has already built;
@@ -100,6 +102,11 @@ export async function syncOperatingSystemSnapshot(
   const unresolvedCapabilities: OsSyncResult['unresolvedCapabilities'] = [];
 
   await deps.tx.transaction(async (repos) => {
+    // `providedBy` names are generated from these exact OS project names. Keep
+    // their node ids so capability linking cannot accidentally downgrade a
+    // fully-described project asset to the generic fallback asset type.
+    const projectAssetIds = new Map<string, string>();
+
     for (const project of snapshot.projects) {
       const node = await repos.graph.upsertNode(workspace.id, {
         kind: 'asset',
@@ -122,6 +129,7 @@ export async function syncOperatingSystemSnapshot(
         location: `os://project/${encodeURIComponent(project.id)}`,
         lastChangeAt: now,
       });
+      projectAssetIds.set(nameKey(project.name), node.id);
     }
 
     for (const capability of snapshot.capabilities) {
@@ -156,21 +164,25 @@ export async function syncOperatingSystemSnapshot(
       });
 
       for (const assetName of capability.providedBy) {
-        const assetNode = await repos.graph.upsertNode(workspace.id, {
-          kind: 'asset',
-          name: assetName,
-          source: 'derived',
-          confidence: capability.evidenceStrength,
-          verifiedAt: now,
-          attrs: { origin: 'operating-system' },
-        });
-        await repos.graph.setAsset(workspace.id, assetNode.id, {
-          assetKind: 'project_or_component',
-          reuseReadiness: 'needs_work',
-          lastChangeAt: now,
-        });
+        let assetNodeId = projectAssetIds.get(nameKey(assetName));
+        if (!assetNodeId) {
+          const assetNode = await repos.graph.upsertNode(workspace.id, {
+            kind: 'asset',
+            name: assetName,
+            source: 'derived',
+            confidence: capability.evidenceStrength,
+            verifiedAt: now,
+            attrs: { origin: 'operating-system' },
+          });
+          assetNodeId = assetNode.id;
+          await repos.graph.setAsset(workspace.id, assetNodeId, {
+            assetKind: 'project_or_component',
+            reuseReadiness: 'needs_work',
+            lastChangeAt: now,
+          });
+        }
         await repos.graph.connect(workspace.id, {
-          fromNodeId: assetNode.id,
+          fromNodeId: assetNodeId,
           toNodeId: node.id,
           kind: 'provides_capability',
           evidence: { origin: 'operating-system', refs: capability.evidenceRefs },
