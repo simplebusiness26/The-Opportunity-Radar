@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readCapitalPlan } from '../../src/application/intelligence/allocate-resources';
+import {
+  availableTimeForHorizon,
+  readCapitalPlan,
+} from '../../src/application/intelligence/allocate-resources';
 import { deriveCapitalUnlockReport } from '../../src/domain/allocation/capital';
 import { allocate, type AllocationCandidate } from '../../src/domain/allocation/index';
 
@@ -51,6 +54,24 @@ describe('recorded capital plans', () => {
   it('rejects unsupported currencies and malformed amounts instead of guessing', () => {
     expect(readCapitalPlan({ capitalPlan: { currency: 'USD', required: 100 } })).toBeNull();
     expect(readCapitalPlan({ capitalPlan: { currency: 'GBP', required: 'unknown' } })).toBeNull();
+  });
+});
+
+describe('recurring time capacity', () => {
+  it('scales weekly availability to the allocation horizon', () => {
+    const resource = { amount: 7, committed: 0, period: 'week' as const };
+    expect(availableTimeForHorizon(resource, 7)).toBe(7);
+    expect(availableTimeForHorizon(resource, 30)).toBe(30);
+  });
+
+  it('scales monthly availability down for a short horizon', () => {
+    const resource = { amount: 20, committed: 0, period: 'month' as const };
+    expect(availableTimeForHorizon(resource, 7)).toBeCloseTo(20 * (7 / 30));
+  });
+
+  it('does not repeat a one-off time allowance', () => {
+    const resource = { amount: 12, committed: 2, period: 'once' as const };
+    expect(availableTimeForHorizon(resource, 30)).toBe(10);
   });
 });
 
