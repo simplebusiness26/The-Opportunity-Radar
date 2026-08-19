@@ -26,7 +26,6 @@ export interface ManagedWatchResult {
 function normalizePhrase(raw: string): string {
   const cleaned = raw
     .replace(/https?:\/\/\S+/gi, ' ')
-    .replace(/[\[\]{}()<>|]/g, ' ')
     .replace(/[_/\\]+/g, ' ')
     .replace(/[^\p{L}\p{N}+#.-]+/gu, ' ')
     .replace(/\s+/g, ' ')
