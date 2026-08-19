@@ -1,0 +1,9 @@
+{
+  "name": "revenue-hunter",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-08-19",
+  "browser": { "binding": "BROWSER", "remote": true },
+  "d1_databases": [
+    { "binding": "REVENUE_DB", "database_name": "revenue-hunter", "database_id": "REPLACE_WITH_D1_DATABASE_ID" }
+  ]
+}
