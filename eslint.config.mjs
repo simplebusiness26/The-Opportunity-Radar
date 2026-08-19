@@ -72,6 +72,7 @@ export default tseslint.config(
       globals: {
         fetch: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         Response: 'readonly',
         crypto: 'readonly',
       },
