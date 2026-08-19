@@ -9,7 +9,7 @@ const STOP_WORDS = new Set([
   'a','an','and','are','as','at','be','been','being','build','building','built','by','create','creating','for','from','get','getting','have','how','i','in','into','is','it','make','making','of','on','or','our','project','projects','ship','shipping','system','systems','that','the','their','this','to','using','we','with','you','your',
 ]);
 
-const METADATA_ONLY = /^(primary language|topics|homepage|visibility)\s*:/i;
+const METADATA_ONLY = /^(primary language|topics|homepage|visibility)\b/i;
 
 export interface OsWatchSeed {
   projects: Array<{ name: string; summary: string; goal: string }>;
@@ -82,7 +82,6 @@ export function deriveOsWatchQueries(snapshot: OsWatchSeed): string[] {
     const key = queryKey(phrase);
     if (!phrase || !key || seen.has(key)) continue;
 
-    // Avoid near-duplicates where one query is just a longer form of another.
     const duplicate = [...seen].some((existing) => existing.includes(key) || key.includes(existing));
     if (duplicate) continue;
 
@@ -136,8 +135,6 @@ export async function maintainOsManagedHackerNewsWatches(
       continue;
     }
 
-    // Re-enable only sources that the OS itself previously made inactive. A
-    // user's manual disable remains respected.
     const autoInactive = source.config.autoInactive === 'true';
     await sources.update(workspaceId, source.id, {
       config,
