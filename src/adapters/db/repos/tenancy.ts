@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import type { Executor } from './_ctx';
 import { memberships, orgs, workspaces } from '../schema/index';
 import type { MemberRole } from '../../../domain/types/identity';
@@ -31,6 +31,11 @@ export async function findWorkspace(db: Executor, workspaceId: string) {
   return rows[0] ?? null;
 }
 
+export async function findOnlyWorkspace(db: Executor) {
+  const rows = await db.select().from(workspaces).orderBy(asc(workspaces.createdAt)).limit(2);
+  return rows.length === 1 ? rows[0]! : null;
+}
+
 export async function updateWorkspaceSettings(
   db: Executor,
   workspaceId: string,
@@ -57,7 +62,6 @@ export async function uniqueSlug(db: Executor, table: 'orgs' | 'workspaces', bas
   }
   throw new Error(`Could not derive a unique slug from "${base}"`);
 }
-
 
 function toSummary(row: {
   id: string;
@@ -87,6 +91,10 @@ export function createTenancyRepository(db: Executor): TenancyRepository {
     },
     findWorkspace: async (workspaceId) => {
       const row = await findWorkspace(db, workspaceId);
+      return row ? toSummary(row) : null;
+    },
+    findOnlyWorkspace: async () => {
+      const row = await findOnlyWorkspace(db);
       return row ? toSummary(row) : null;
     },
     updateSettings: (workspaceId, settings, now) =>
