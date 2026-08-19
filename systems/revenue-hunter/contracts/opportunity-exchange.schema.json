@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "revenue-hunter.opportunities.v1",
+  "title": "Revenue Hunter Opportunity Export",
+  "type": "object",
+  "required": ["contract", "generatedAt", "items"],
+  "properties": {
+    "contract": { "const": "revenue-hunter.opportunities.v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["externalRef", "title", "kind", "score"],
+        "properties": {
+          "externalRef": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "const": "near_term_revenue" },
+          "score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "problem": { "type": ["string", "null"] },
+          "proposedSolution": { "type": ["string", "null"] },
+          "indicativePrice": { "type": ["number", "null"] }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
