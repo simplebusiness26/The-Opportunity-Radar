@@ -1,0 +1,57 @@
+name: Radar Production Tick
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Offset from the top of the hour to reduce GitHub Actions scheduling congestion.
+    - cron: '7,22,37,52 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: radar-production-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    name: Run Radar serverless tick
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    environment: production
+    env:
+      RADAR_URL: https://the-opportunity-radar.vercel.app
+      RADAR_TICK_TOKEN: ${{ secrets.RADAR_TICK_TOKEN }}
+    steps:
+      - name: Skip safely until token is configured
+        if: ${{ env.RADAR_TICK_TOKEN == '' }}
+        run: echo "RADAR_TICK_TOKEN is not configured in the GitHub production environment; scheduled Radar tick skipped."
+
+      - name: Run Radar tick
+        if: ${{ env.RADAR_TICK_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          http_code="$(curl \
+            --silent \
+            --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --max-time 55 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${RADAR_TICK_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "${RADAR_URL}/api/v1/system/tick")"
+
+          cat "$response_file"
+          echo
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Radar tick failed with HTTP ${http_code}."
+            exit 1
+          fi
+
+          echo "Radar production tick completed successfully (HTTP ${http_code})."
