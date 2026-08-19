@@ -21,6 +21,25 @@ export type CandidateKind =
   | 'reduce_cost'
   | 'wait';
 
+export type CapitalRequirementCategory =
+  | 'validation'
+  | 'infrastructure'
+  | 'data'
+  | 'distribution'
+  | 'compliance'
+  | 'inventory'
+  | 'contractor'
+  | 'software'
+  | 'other';
+
+export interface CapitalRequirement {
+  category: CapitalRequirementCategory;
+  label: string;
+  amount: number;
+  note?: string | null;
+  evidenceRefs?: string[];
+}
+
 export interface AllocationCandidate {
   id: string;
   subjectType: 'opportunity' | 'experiment' | 'project' | 'capability';
@@ -35,7 +54,16 @@ export interface AllocationCandidate {
   confidence: number;
   /** Effort, in days. */
   costDays: number;
+  /** Cash required in the workspace currency. */
   costMoney: number;
+  /**
+   * `false` means the cash requirement has not been evidenced yet. Undefined
+   * preserves backwards compatibility for older deterministic candidates, where
+   * costMoney is already an explicit input.
+   */
+  capitalCostKnown?: boolean;
+  /** Evidence-backed explanation of what the cash would be spent on. */
+  capitalRequirements?: CapitalRequirement[];
   /** 0-1 how much it advances the stated goal. */
   goalAlignment: number | null;
   /** 0-1 chance of getting stuck. */
@@ -131,7 +159,12 @@ export function allocate(
     .map((candidate) => {
       const affordableByTime =
         resources.days === null || candidate.costDays <= Math.min(resources.days, horizonDays);
-      const affordableByMoney = resources.money === null || candidate.costMoney <= resources.money;
+      const capitalKnown = candidate.capitalCostKnown !== false;
+      // If the user has stated a finite budget, an unknown cash requirement is
+      // not allowed to masquerade as £0. With no budget recorded yet we preserve
+      // the old behaviour so onboarding can still inspect the candidate list.
+      const affordableByMoney =
+        resources.money === null || (capitalKnown && candidate.costMoney <= resources.money);
       const blockedBy = (candidate.dependsOn ?? []).filter((id) => !completed.has(id));
 
       return {
@@ -193,6 +226,14 @@ function noActionReason(
     return 'Nothing has been scored yet, so there is nothing to compare.';
   }
 
+  if (
+    resources.money !== null &&
+    ranked.some((candidate) => candidate.capitalCostKnown === false) &&
+    ranked.every((candidate) => !candidate.affordable)
+  ) {
+    return 'The cash requirement for the strongest options is not evidenced yet. Research the capital plan before treating them as affordable or unaffordable.';
+  }
+
   const unaffordable = ranked.filter((candidate) => !candidate.affordable);
   if (unaffordable.length === ranked.length) {
     return `Everything on the list costs more than the ${resources.days ?? 0} days or ${resources.money ?? 0} available.`;
@@ -214,8 +255,11 @@ function explainCandidate(
   horizonDays: number,
   policy: AllocationPolicy,
 ): string {
+  if (resources.money !== null && candidate.capitalCostKnown === false) {
+    return `Needs about ${candidate.costDays} day(s), but its cash requirement has not been evidenced yet. Research the capital plan before committing.`;
+  }
   if (!candidate.affordable) {
-    return `Costs ${candidate.costDays} days and ${candidate.costMoney}; more than the ${resources.days ?? horizonDays} days available.`;
+    return `Costs ${candidate.costDays} days and ${candidate.costMoney}; more than the ${resources.days ?? horizonDays} days or ${resources.money ?? 0} available.`;
   }
   if (candidate.blockedBy.length > 0) {
     return `Waiting on ${candidate.blockedBy.length} earlier piece(s) of work.`;
@@ -225,7 +269,10 @@ function explainCandidate(
   }
 
   const per = candidate.expectedReturn.toFixed(1);
-  return `Expected return ${per} per day over ${candidate.costDays} day(s), fit ${Math.round(candidate.fit)}, confidence ${Math.round(candidate.confidence * 100)}%.`;
+  const capital = candidate.capitalCostKnown === false
+    ? 'cash requirement unknown'
+    : `cash ${candidate.costMoney}`;
+  return `Expected return ${per} per day over ${candidate.costDays} day(s), ${capital}, fit ${Math.round(candidate.fit)}, confidence ${Math.round(candidate.confidence * 100)}%.`;
 }
 
 function explainAllocation(
