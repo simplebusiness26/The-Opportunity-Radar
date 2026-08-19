@@ -27,7 +27,7 @@ jobs:
       RADAR_URL: https://the-opportunity-radar.vercel.app
       RADAR_TICK_TOKEN: ${{ secrets.RADAR_TICK_TOKEN }}
     steps:
-      # This push trigger doubles as a safe post-rotation verification path.
+      # Push-trigger verification also refreshes Vercel after integration-secret changes.
       - name: Skip safely until token is configured
         if: ${{ env.RADAR_TICK_TOKEN == '' }}
         run: echo "RADAR_TICK_TOKEN is not configured in the GitHub production environment; scheduled Radar tick skipped."
