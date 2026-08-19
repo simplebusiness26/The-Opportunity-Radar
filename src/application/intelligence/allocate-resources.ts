@@ -45,11 +45,11 @@ const CAPITAL_CATEGORIES = new Set<CapitalRequirementCategory>([
   'other',
 ]);
 
-const PERIOD_DAYS = {
+const PERIOD_DAYS: Record<string, number> = {
   week: 7,
   month: 30,
   quarter: 90,
-} as const;
+};
 
 function capitalRequirement(value: unknown): CapitalRequirement | null {
   if (!value || typeof value !== 'object') return null;
@@ -109,13 +109,17 @@ export function readCapitalPlan(
 }
 
 export function availableTimeForHorizon(
-  resource: { amount: number; committed: number; period: 'week' | 'month' | 'quarter' | 'once' },
+  resource: { amount: number; committed: number; period: string },
   horizonDays: number,
 ): number {
   const availableInPeriod = Math.max(0, resource.amount - resource.committed);
   if (resource.period === 'once') return availableInPeriod;
 
-  return availableInPeriod * (horizonDays / PERIOD_DAYS[resource.period]);
+  const periodDays = PERIOD_DAYS[resource.period];
+  // Persisted rows should only contain the validated periods, but if a legacy or
+  // corrupted row does not, refusing to multiply it is safer than inventing a cadence.
+  if (!periodDays) return availableInPeriod;
+  return availableInPeriod * (horizonDays / periodDays);
 }
 
 /**
