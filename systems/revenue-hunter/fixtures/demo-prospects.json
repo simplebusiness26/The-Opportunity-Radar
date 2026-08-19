@@ -1,0 +1,50 @@
+[
+  {
+    "externalId": "demo-roofing-001",
+    "name": "Demo Roofing Co",
+    "address": "Brighton, UK",
+    "website": "https://demo-roofing.invalid",
+    "phone": "01273 000001",
+    "category": "roofing_contractor",
+    "rating": 4.3,
+    "ratingCount": 41,
+    "source": "demo_fixture",
+    "inspection": {
+      "markdown": "# Demo Roofing Co\nCall us for a quote. Family-run roofing services. Emergency repairs available.",
+      "links": ["/", "/services", "/contact"],
+      "flags": {"hasForm": false, "hasBooking": false, "hasQuote": false, "hasStrongCta": false}
+    }
+  },
+  {
+    "externalId": "demo-plumbing-002",
+    "name": "Demo Plumbing Services",
+    "address": "Brighton, UK",
+    "website": "https://demo-plumbing.invalid",
+    "phone": "01273 000002",
+    "category": "plumber",
+    "rating": 4.6,
+    "ratingCount": 87,
+    "source": "demo_fixture",
+    "inspection": {
+      "markdown": "# Demo Plumbing Services\nDomestic and commercial plumbing. Contact us by phone or email.",
+      "links": ["/", "/about", "/contact"],
+      "flags": {"hasForm": false, "hasBooking": false, "hasQuote": false, "hasStrongCta": true}
+    }
+  },
+  {
+    "externalId": "demo-electric-003",
+    "name": "Demo Electrical Ltd",
+    "address": "Brighton, UK",
+    "website": "https://demo-electrical.invalid",
+    "phone": "01273 000003",
+    "category": "electrician",
+    "rating": 4.8,
+    "ratingCount": 129,
+    "source": "demo_fixture",
+    "inspection": {
+      "markdown": "# Demo Electrical Ltd\nBook an electrician. Request a quote using our contact form.",
+      "links": ["/", "/services", "/quote", "/contact"],
+      "flags": {"hasForm": true, "hasBooking": false, "hasQuote": true, "hasStrongCta": true}
+    }
+  }
+]
