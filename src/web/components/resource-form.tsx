@@ -30,12 +30,16 @@ async function saveResource(
 
 export function ResourceForm({
   csrfToken,
-  currentDaysPerWeek,
-  currentBudgetGbp,
+  currentTimeAmount,
+  currentTimeCommitted,
+  currentBudgetAmount,
+  currentBudgetCommitted,
 }: {
   csrfToken: string;
-  currentDaysPerWeek: number | null;
-  currentBudgetGbp: number | null;
+  currentTimeAmount: number | null;
+  currentTimeCommitted: number;
+  currentBudgetAmount: number | null;
+  currentBudgetCommitted: number;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +60,16 @@ export function ResourceForm({
       if (!Number.isFinite(budgetGbp) || budgetGbp < 0) {
         throw new Error('Monthly cash budget cannot be negative.');
       }
+      if (daysPerWeek < currentTimeCommitted) {
+        throw new Error(
+          `Time capacity cannot be below the ${currentTimeCommitted} day(s) already committed.`,
+        );
+      }
+      if (budgetGbp < currentBudgetCommitted) {
+        throw new Error(
+          `Cash budget cannot be below the £${currentBudgetCommitted} already committed.`,
+        );
+      }
 
       await saveResource(csrfToken, {
         name: 'Owner time capacity',
@@ -63,7 +77,7 @@ export function ResourceForm({
         amount: daysPerWeek,
         unit: 'days',
         period: 'week',
-        committed: 0,
+        committed: currentTimeCommitted,
       });
       await saveResource(csrfToken, {
         name: 'Owner cash budget',
@@ -71,7 +85,7 @@ export function ResourceForm({
         amount: budgetGbp,
         unit: 'GBP',
         period: 'month',
-        committed: 0,
+        committed: currentBudgetCommitted,
       });
 
       window.location.reload();
@@ -104,11 +118,11 @@ export function ResourceForm({
             id="daysPerWeek"
             name="daysPerWeek"
             type="number"
-            min="0"
+            min={currentTimeCommitted}
             max="7"
             step="0.5"
             required
-            defaultValue={currentDaysPerWeek ?? ''}
+            defaultValue={currentTimeAmount ?? ''}
             placeholder="7"
             className={inputClass}
           />
@@ -123,10 +137,10 @@ export function ResourceForm({
             id="budgetGbp"
             name="budgetGbp"
             type="number"
-            min="0"
+            min={currentBudgetCommitted}
             step="1"
             required
-            defaultValue={currentBudgetGbp ?? ''}
+            defaultValue={currentBudgetAmount ?? ''}
             placeholder="0"
             className={inputClass}
           />
