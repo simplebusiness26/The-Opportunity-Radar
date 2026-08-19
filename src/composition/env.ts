@@ -41,6 +41,17 @@ const envSchema = z.object({
    * parties, and neither should imply the other.
    */
   RADAR_FEEDBACK_TOKEN: z.string().min(16).optional(),
+  /**
+   * Machine-to-machine token for the personal Operating System bridge. The
+   * endpoint is completely disabled when this is absent.
+   */
+  RADAR_OS_SYNC_TOKEN: z.string().min(24).optional(),
+  /**
+   * Optional explicit target for OS sync. Single-workspace installs do not need
+   * it; Radar will resolve the only workspace. Set it before adding more
+   * workspaces so a machine integration can never guess its tenant.
+   */
+  RADAR_OS_WORKSPACE_ID: z.string().uuid().optional(),
   RADAR_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
   RADAR_CLOCK: z.string().optional(),
   /** Multiplies every rate limit. See docs/SECURITY.md before raising it. */
