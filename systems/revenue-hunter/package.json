@@ -1,9 +1,10 @@
 {
   "name": "revenue-hunter",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "dry-run": "node scripts/dry-run.mjs"
   }
 }
