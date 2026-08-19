@@ -62,6 +62,23 @@ export async function findContacts({ apiKey, domain, limit = 5 }) {
   })).sort((a, b) => b.confidence - a.confidence);
 }
 
+export async function createPaymentLink({ secretKey, amountGbp, description, prospectId }) {
+  if (!secretKey) throw new Error('STRIPE_SECRET_KEY is not configured');
+  const params = new URLSearchParams();
+  params.set('line_items[0][price_data][currency]', 'gbp');
+  params.set('line_items[0][price_data][unit_amount]', String(Math.round(Number(amountGbp) * 100)));
+  params.set('line_items[0][price_data][product_data][name]', description || 'Digital services');
+  params.set('line_items[0][quantity]', '1');
+  params.set('metadata[revenue_hunter_prospect_id]', prospectId);
+  const res = await fetch('https://api.stripe.com/v1/payment_links', {
+    method: 'POST',
+    headers: { 'authorization': `Bearer ${secretKey}`, 'content-type': 'application/x-www-form-urlencoded' },
+    body: params
+  });
+  const body = await json(res);
+  return { id: body.id, url: body.url, active: body.active };
+}
+
 export function domainFromUrl(value = '') {
   try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return ''; }
 }
