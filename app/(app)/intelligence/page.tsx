@@ -147,8 +147,10 @@ export default async function IntelligencePage() {
 
       <ResourceForm
         csrfToken={session?.csrfSecret ?? ''}
-        currentDaysPerWeek={currentTime ? currentTime.amount - currentTime.committed : null}
-        currentBudgetGbp={currentBudget ? currentBudget.amount - currentBudget.committed : null}
+        currentTimeAmount={currentTime?.amount ?? null}
+        currentTimeCommitted={currentTime?.committed ?? 0}
+        currentBudgetAmount={currentBudget?.amount ?? null}
+        currentBudgetCommitted={currentBudget?.committed ?? 0}
       />
 
       <Panel>
