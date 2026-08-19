@@ -4,6 +4,10 @@ import type { SystemCtx } from '../../domain/types/identity';
 import type { Clock } from '../../ports/clock';
 import type { Repositories, Transactor } from '../../ports/repositories/index';
 import type { WorkspaceSummary } from '../../ports/repositories/auth';
+import {
+  maintainOsManagedHackerNewsWatches,
+  type ManagedWatchResult,
+} from './os-managed-sources';
 
 const maturity = z.enum(['experimental', 'working', 'production', 'battle_tested']);
 const reuseReadiness = z.enum(['concept', 'needs_work', 'lift_and_shift', 'drop_in']);
@@ -70,6 +74,9 @@ export interface OsSyncResult {
   capabilitiesSynced: number;
   resourcesSynced: number;
   goalsSynced: number;
+  managedFreeSources: number;
+  activeFreeSources: number;
+  watchQueries: string[];
   unresolvedCapabilities: Array<{ name: string; declaredAs: string }>;
 }
 
@@ -100,6 +107,7 @@ export async function syncOperatingSystemSnapshot(
   };
 
   const unresolvedCapabilities: OsSyncResult['unresolvedCapabilities'] = [];
+  let managedWatches: ManagedWatchResult = { managedSources: 0, activeSources: 0, queries: [] };
 
   await deps.tx.transaction(async (repos) => {
     // `providedBy` names are generated from these exact OS project names. Keep
@@ -223,6 +231,13 @@ export async function syncOperatingSystemSnapshot(
       });
     }
 
+    managedWatches = await maintainOsManagedHackerNewsWatches(
+      repos.sources,
+      workspace.id,
+      snapshot,
+      now,
+    );
+
     await repos.audit.record(ctx, {
       action: 'integration.operating_system_synced',
       entityType: 'workspace',
@@ -233,6 +248,8 @@ export async function syncOperatingSystemSnapshot(
         capabilities: snapshot.capabilities.length,
         resources: snapshot.resources.length,
         goals: snapshot.goals.length,
+        managedFreeSources: managedWatches.activeSources,
+        watchQueries: managedWatches.queries,
         unresolvedCapabilities,
       },
     });
@@ -244,6 +261,9 @@ export async function syncOperatingSystemSnapshot(
     capabilitiesSynced: snapshot.capabilities.length - unresolvedCapabilities.length,
     resourcesSynced: snapshot.resources.length,
     goalsSynced: snapshot.goals.length,
+    managedFreeSources: managedWatches.managedSources,
+    activeFreeSources: managedWatches.activeSources,
+    watchQueries: managedWatches.queries,
     unresolvedCapabilities,
   };
 }
