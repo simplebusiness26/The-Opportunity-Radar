@@ -87,6 +87,12 @@ export interface TenancyRepository {
     role: MemberRole;
   }): Promise<void>;
   findWorkspace(workspaceId: string): Promise<WorkspaceSummary | null>;
+  /**
+   * Returns the only workspace in a single-owner install. Returns null when
+   * there are zero or multiple workspaces so a machine integration can never
+   * silently guess which tenant it should mutate.
+   */
+  findOnlyWorkspace(): Promise<WorkspaceSummary | null>;
   updateSettings(workspaceId: string, settings: Record<string, unknown>, now: Date): Promise<void>;
   uniqueSlug(table: 'orgs' | 'workspaces', base: string): Promise<string>;
 }
