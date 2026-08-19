@@ -1,4 +1,5 @@
 name: Radar Production Tick
+# Verification touch: process the newly created OS-managed free sources.
 
 on:
   workflow_dispatch:
