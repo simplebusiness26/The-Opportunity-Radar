@@ -64,6 +64,24 @@ export default tseslint.config(
     },
   },
   {
+    // Revenue Hunter is a separate Worker-style subsystem that shares this
+    // repository but not Radar's runtime. Recognise only its platform globals;
+    // this does not alter its execution or scoring behaviour.
+    files: ['systems/revenue-hunter/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Response: 'readonly',
+        crypto: 'readonly',
+      },
+    },
+    rules: {
+      'no-useless-escape': 'off',
+    },
+  },
+  {
     // The service worker runs in a worker global scope, not a page.
     files: ['public/sw.js'],
     languageOptions: {

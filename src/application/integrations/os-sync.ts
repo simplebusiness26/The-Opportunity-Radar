@@ -4,6 +4,10 @@ import type { SystemCtx } from '../../domain/types/identity';
 import type { Clock } from '../../ports/clock';
 import type { Repositories, Transactor } from '../../ports/repositories/index';
 import type { WorkspaceSummary } from '../../ports/repositories/auth';
+import {
+  maintainOsManagedHackerNewsWatches,
+  type ManagedWatchResult,
+} from './os-managed-sources';
 
 const maturity = z.enum(['experimental', 'working', 'production', 'battle_tested']);
 const reuseReadiness = z.enum(['concept', 'needs_work', 'lift_and_shift', 'drop_in']);
@@ -70,21 +74,15 @@ export interface OsSyncResult {
   capabilitiesSynced: number;
   resourcesSynced: number;
   goalsSynced: number;
+  managedFreeSources: number;
+  activeFreeSources: number;
+  watchQueries: string[];
+  managedSourceWarning: string | null;
   unresolvedCapabilities: Array<{ name: string; declaredAs: string }>;
 }
 
 const nameKey = (value: string) => value.trim().toLowerCase();
 
-/**
- * Imports the user's own operating picture into Radar's internal-intelligence
- * graph. The OS is evidence about what this particular owner has already built;
- * it is never treated as external market evidence and therefore cannot inflate
- * opportunity confidence or independent-source counts.
- *
- * The sync is upsert-only in v1. Disappearing OS records are not silently
- * deleted from Radar because absence from one snapshot is not proof an asset no
- * longer exists. A later reconciliation pass can make staleness explicit.
- */
 export async function syncOperatingSystemSnapshot(
   deps: OsSyncDeps,
   workspace: WorkspaceSummary,
@@ -101,33 +99,23 @@ export async function syncOperatingSystemSnapshot(
 
   const unresolvedCapabilities: OsSyncResult['unresolvedCapabilities'] = [];
 
+  // Internal intelligence is the primary contract. It commits independently so
+  // an optional external-source setup problem can never roll it back.
   await deps.tx.transaction(async (repos) => {
-    // `providedBy` names are generated from these exact OS project names. Keep
-    // their node ids so capability linking cannot accidentally downgrade a
-    // fully-described project asset to the generic fallback asset type.
     const projectAssetIds = new Map<string, string>();
 
     for (const project of snapshot.projects) {
       const node = await repos.graph.upsertNode(workspace.id, {
-        kind: 'asset',
-        name: project.name,
-        summary: project.summary || null,
-        source: 'derived',
-        confidence: 1,
-        verifiedAt: now,
+        kind: 'asset', name: project.name, summary: project.summary || null,
+        source: 'derived', confidence: 1, verifiedAt: now,
         attrs: {
-          origin: 'operating-system',
-          osProjectId: project.id,
-          osStatus: project.status,
-          osUpdatedAt: project.updatedAt ?? null,
-          snapshotGeneratedAt: snapshot.generatedAt,
+          origin: 'operating-system', osProjectId: project.id, osStatus: project.status,
+          osUpdatedAt: project.updatedAt ?? null, snapshotGeneratedAt: snapshot.generatedAt,
         },
       });
       await repos.graph.setAsset(workspace.id, node.id, {
-        assetKind: 'project',
-        reuseReadiness: project.reuseReadiness,
-        location: `os://project/${encodeURIComponent(project.id)}`,
-        lastChangeAt: now,
+        assetKind: 'project', reuseReadiness: project.reuseReadiness,
+        location: `os://project/${encodeURIComponent(project.id)}`, lastChangeAt: now,
       });
       projectAssetIds.set(nameKey(project.name), node.id);
     }
@@ -135,56 +123,38 @@ export async function syncOperatingSystemSnapshot(
     for (const capability of snapshot.capabilities) {
       const resolution = resolveCapability(capability.capability);
       const node = await repos.graph.upsertNode(workspace.id, {
-        kind: 'capability',
-        name: capability.name,
-        summary: capability.notes ?? null,
-        source: 'derived',
-        confidence: capability.evidenceStrength,
-        verifiedAt: now,
+        kind: 'capability', name: capability.name, summary: capability.notes ?? null,
+        source: 'derived', confidence: capability.evidenceStrength, verifiedAt: now,
         attrs: {
-          origin: 'operating-system',
-          declaredAs: capability.capability,
-          resolvedBy: resolution.method,
-          evidenceRefs: capability.evidenceRefs,
+          origin: 'operating-system', declaredAs: capability.capability,
+          resolvedBy: resolution.method, evidenceRefs: capability.evidenceRefs,
           snapshotGeneratedAt: snapshot.generatedAt,
         },
       });
-
       if (!resolution.key) {
         unresolvedCapabilities.push({ name: capability.name, declaredAs: capability.capability });
         continue;
       }
-
       await repos.graph.setCapability(workspace.id, node.id, {
-        taxonomyKey: resolution.key,
-        maturity: capability.maturity,
-        evidenceStrength: capability.evidenceStrength,
-        notes: capability.notes ?? null,
+        taxonomyKey: resolution.key, maturity: capability.maturity,
+        evidenceStrength: capability.evidenceStrength, notes: capability.notes ?? null,
         lastVerifiedAt: now,
       });
-
       for (const assetName of capability.providedBy) {
         let assetNodeId = projectAssetIds.get(nameKey(assetName));
         if (!assetNodeId) {
           const assetNode = await repos.graph.upsertNode(workspace.id, {
-            kind: 'asset',
-            name: assetName,
-            source: 'derived',
-            confidence: capability.evidenceStrength,
-            verifiedAt: now,
+            kind: 'asset', name: assetName, source: 'derived',
+            confidence: capability.evidenceStrength, verifiedAt: now,
             attrs: { origin: 'operating-system' },
           });
           assetNodeId = assetNode.id;
           await repos.graph.setAsset(workspace.id, assetNodeId, {
-            assetKind: 'project_or_component',
-            reuseReadiness: 'needs_work',
-            lastChangeAt: now,
+            assetKind: 'project_or_component', reuseReadiness: 'needs_work', lastChangeAt: now,
           });
         }
         await repos.graph.connect(workspace.id, {
-          fromNodeId: assetNodeId,
-          toNodeId: node.id,
-          kind: 'provides_capability',
+          fromNodeId: assetNodeId, toNodeId: node.id, kind: 'provides_capability',
           evidence: { origin: 'operating-system', refs: capability.evidenceRefs },
         });
       }
@@ -192,51 +162,53 @@ export async function syncOperatingSystemSnapshot(
 
     for (const resource of snapshot.resources) {
       const node = await repos.graph.upsertNode(workspace.id, {
-        kind: 'resource',
-        name: resource.name,
-        source: 'derived',
-        confidence: 1,
-        verifiedAt: now,
-        attrs: { origin: 'operating-system', snapshotGeneratedAt: snapshot.generatedAt },
+        kind: 'resource', name: resource.name, source: 'derived', confidence: 1,
+        verifiedAt: now, attrs: { origin: 'operating-system', snapshotGeneratedAt: snapshot.generatedAt },
       });
       await repos.graph.setResource(workspace.id, node.id, resource);
     }
 
     for (const goal of snapshot.goals) {
       const node = await repos.graph.upsertNode(workspace.id, {
-        kind: 'goal',
-        name: goal.name,
-        source: 'derived',
-        confidence: 1,
-        verifiedAt: now,
+        kind: 'goal', name: goal.name, source: 'derived', confidence: 1, verifiedAt: now,
         attrs: {
-          origin: 'operating-system',
-          evidenceRefs: goal.evidenceRefs,
+          origin: 'operating-system', evidenceRefs: goal.evidenceRefs,
           snapshotGeneratedAt: snapshot.generatedAt,
         },
       });
       await repos.graph.setGoal(workspace.id, node.id, {
-        horizon: goal.horizon,
-        priority: goal.priority,
-        metric: goal.metric ?? null,
-        target: goal.target ?? null,
+        horizon: goal.horizon, priority: goal.priority,
+        metric: goal.metric ?? null, target: goal.target ?? null,
       });
     }
 
     await repos.audit.record(ctx, {
-      action: 'integration.operating_system_synced',
-      entityType: 'workspace',
-      entityId: workspace.id,
+      action: 'integration.operating_system_synced', entityType: 'workspace', entityId: workspace.id,
       after: {
-        snapshotGeneratedAt: snapshot.generatedAt,
-        projects: snapshot.projects.length,
-        capabilities: snapshot.capabilities.length,
-        resources: snapshot.resources.length,
-        goals: snapshot.goals.length,
-        unresolvedCapabilities,
+        snapshotGeneratedAt: snapshot.generatedAt, projects: snapshot.projects.length,
+        capabilities: snapshot.capabilities.length, resources: snapshot.resources.length,
+        goals: snapshot.goals.length, unresolvedCapabilities,
       },
     });
   });
+
+  let managedWatches: ManagedWatchResult = { managedSources: 0, activeSources: 0, queries: [] };
+  let managedSourceWarning: string | null = null;
+  try {
+    managedWatches = await maintainOsManagedHackerNewsWatches(
+      deps.repos.sources, workspace.id, snapshot, now,
+    );
+    await deps.repos.audit.record(ctx, {
+      action: 'integration.os_free_sources_reconciled', entityType: 'workspace', entityId: workspace.id,
+      after: { activeFreeSources: managedWatches.activeSources, watchQueries: managedWatches.queries },
+    });
+  } catch (error) {
+    managedSourceWarning = error instanceof Error ? error.message : 'Automatic source setup failed.';
+    await deps.repos.audit.record(ctx, {
+      action: 'integration.os_free_sources_failed', entityType: 'workspace', entityId: workspace.id,
+      after: { warning: managedSourceWarning },
+    });
+  }
 
   return {
     workspaceId: workspace.id,
@@ -244,6 +216,10 @@ export async function syncOperatingSystemSnapshot(
     capabilitiesSynced: snapshot.capabilities.length - unresolvedCapabilities.length,
     resourcesSynced: snapshot.resources.length,
     goalsSynced: snapshot.goals.length,
+    managedFreeSources: managedWatches.managedSources,
+    activeFreeSources: managedWatches.activeSources,
+    watchQueries: managedWatches.queries,
+    managedSourceWarning,
     unresolvedCapabilities,
   };
 }
