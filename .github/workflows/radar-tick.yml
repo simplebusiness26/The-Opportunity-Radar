@@ -2,6 +2,10 @@ name: Radar Production Tick
 
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/opportunity-radar-build-jxy1gg]
+    paths:
+      - '.github/workflows/radar-tick.yml'
   schedule:
     # Offset from the top of the hour to reduce GitHub Actions scheduling congestion.
     - cron: '7,22,37,52 * * * *'
