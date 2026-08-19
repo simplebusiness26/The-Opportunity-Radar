@@ -4,6 +4,8 @@ import {
   type AllocationCandidate,
   type AllocationResult,
   type AvailableResources,
+  type CapitalRequirement,
+  type CapitalRequirementCategory,
 } from '../../domain/allocation/index';
 import { errors } from '../../domain/types/errors';
 import type { ActorCtx } from '../../domain/types/identity';
@@ -23,6 +25,81 @@ export interface AllocationOptions {
   /** Overrides the recorded resources, for scenario comparison. */
   budgetOverride?: number | null;
   daysOverride?: number | null;
+}
+
+export interface RecordedCapitalPlan {
+  currency: 'GBP';
+  required: number;
+  requirements: CapitalRequirement[];
+}
+
+const CAPITAL_CATEGORIES = new Set<CapitalRequirementCategory>([
+  'validation',
+  'infrastructure',
+  'data',
+  'distribution',
+  'compliance',
+  'inventory',
+  'contractor',
+  'software',
+  'other',
+]);
+
+function capitalRequirement(value: unknown): CapitalRequirement | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  const amount = Number(row.amount);
+  const category = String(row.category ?? 'other') as CapitalRequirementCategory;
+  const label = typeof row.label === 'string' ? row.label.trim() : '';
+
+  if (!label || !Number.isFinite(amount) || amount < 0 || !CAPITAL_CATEGORIES.has(category)) {
+    return null;
+  }
+
+  return {
+    category,
+    label: label.slice(0, 200),
+    amount,
+    ...(typeof row.note === 'string' && row.note.trim()
+      ? { note: row.note.trim().slice(0, 1000) }
+      : {}),
+    ...(Array.isArray(row.evidenceRefs)
+      ? {
+          evidenceRefs: row.evidenceRefs
+            .filter((ref): ref is string => typeof ref === 'string' && ref.trim().length > 0)
+            .map((ref) => ref.trim().slice(0, 500))
+            .slice(0, 50),
+        }
+      : {}),
+  };
+}
+
+/**
+ * Capital plans live in opportunity notes until they deserve their own table.
+ * Only explicit, valid GBP amounts count. Missing or malformed plans remain
+ * unknown rather than being silently interpreted as £0.
+ */
+export function readCapitalPlan(
+  notes: Record<string, unknown>,
+  key: 'capitalPlan' | 'validationCapitalPlan' = 'capitalPlan',
+): RecordedCapitalPlan | null {
+  const raw = notes[key];
+  if (!raw || typeof raw !== 'object') return null;
+
+  const row = raw as Record<string, unknown>;
+  if (row.currency !== undefined && row.currency !== 'GBP') return null;
+
+  const required = Number(row.required);
+  if (!Number.isFinite(required) || required < 0) return null;
+
+  const requirements = Array.isArray(row.requirements)
+    ? row.requirements
+        .map(capitalRequirement)
+        .filter((item): item is CapitalRequirement => item !== null)
+        .slice(0, 30)
+    : [];
+
+  return { currency: 'GBP', required, requirements };
 }
 
 /**
@@ -85,10 +162,12 @@ export async function allocateResources(
 
     const attractiveness = score.attractiveness ?? 0;
     const confidence = score.confidence;
+    const validationPlan = readCapitalPlan(opportunity.notes, 'validationCapitalPlan');
+    const buildPlan = readCapitalPlan(opportunity.notes, 'capitalPlan');
 
-    // Every opportunity offers two genuinely different moves: find out whether
-    // it is real, or build it. Ranking them against each other is what stops the
-    // engine defaulting to "build the highest score".
+    // Basic validation can be done with free methods: interviews, outreach,
+    // public-source research and free-tier prototypes. If an opportunity really
+    // requires paid validation, that must be recorded explicitly in its notes.
     candidates.push({
       id: `validate:${opportunity.id}`,
       subjectType: 'opportunity',
@@ -99,7 +178,9 @@ export async function allocateResources(
       fit: fit.score,
       confidence: Math.max(confidence, 0.4),
       costDays: 2,
-      costMoney: 50,
+      costMoney: validationPlan?.required ?? 0,
+      capitalCostKnown: true,
+      capitalRequirements: validationPlan?.requirements ?? [],
       goalAlignment: null,
       executionRisk: 0.15,
       // A cheap test of an uncertain thesis is worth more the less we know.
@@ -117,7 +198,9 @@ export async function allocateResources(
         fit: fit.score,
         confidence,
         costDays: Math.round((leverage.leveragedDays[0] + leverage.leveragedDays[1]) / 2),
-        costMoney: 0,
+        costMoney: buildPlan?.required ?? 0,
+        capitalCostKnown: buildPlan !== null,
+        capitalRequirements: buildPlan?.requirements ?? [],
         goalAlignment: null,
         executionRisk: 0.2 + 0.4 * (1 - leverage.coverage),
         learningValue: 0.25,
