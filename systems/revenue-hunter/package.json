@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "dry-run": "node scripts/dry-run.mjs"
+    "dry-run": "node scripts/dry-run.mjs",
+    "doctor": "node scripts/doctor.mjs"
   }
 }
