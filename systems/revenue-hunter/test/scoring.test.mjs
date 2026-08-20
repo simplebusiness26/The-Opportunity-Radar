@@ -14,6 +14,13 @@ test('detects conversion gaps', () => {
   assert.equal(r.flags.hasHttps, true);
 });
 
+test('no website is treated as a commercial opportunity', () => {
+  const r = inferOpportunitySignals({markdown:'', links:[], website:''});
+  assert.equal(r.findings[0].code, 'NO_WEBSITE');
+  assert.equal(r.findings[0].severity, 92);
+  assert.equal(r.flags.noWebsite, true);
+});
+
 test('best finding is highest severity', () => {
   assert.equal(chooseBestFinding([{code:'A',severity:10},{code:'B',severity:90}]).code, 'B');
 });
