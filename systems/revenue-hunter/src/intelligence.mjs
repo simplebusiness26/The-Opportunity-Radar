@@ -52,9 +52,13 @@ function pageSignals(page){
 }
 
 export async function deepSiteAudit({website,links=[],maxPages=4}){
-  if(!website)return {pages:[],summary:{noWebsite:true},findings:[{code:'NO_WEBSITE',severity:92,title:'No discoverable website',solution:'mobile-first conversion website'}]};
-  const urls=uniq([website,...discoverAuditPages(links,website,maxPages-1)]).slice(0,maxPages);
-  const pages=[];for(const u of urls)pages.push(await fetchPage(u));
+  if(!website)return {pages:[],summary:{noWebsite:true},findings:[{code:'NO_WEBSITE',severity:92,title:'No discoverable website',solution:'mobile-first conversion website'}],contacts:{emails:[],phones:[],socials:{},contactPage:''}};
+  const seedLinks=links.length?links:[website];
+  let urls=uniq([website,...discoverAuditPages(seedLinks,website,maxPages-1)]).slice(0,maxPages);
+  const firstPage=await fetchPage(website);
+  const discoveredLinks=[...String(firstPage.html||'').matchAll(/href=["']([^"']+)/gi)].map(m=>absolutize(m[1],website));
+  urls=uniq([website,...discoverAuditPages(discoveredLinks,website,maxPages-1)]).slice(0,maxPages);
+  const pages=[firstPage];for(const u of urls.slice(1))pages.push(await fetchPage(u));
   const sig=pages.map(pageSignals),findings=[];
   const good=sig.filter(x=>x.status>=200&&x.status<400);
   if(!good.some(x=>x.hasQuote))findings.push({code:'NO_QUOTE_FLOW',severity:78,title:'No obvious quote flow across audited pages',solution:'guided quote and job-intake funnel'});
@@ -64,7 +68,10 @@ export async function deepSiteAudit({website,links=[],maxPages=4}){
   if(!good.some(x=>x.hasContact))findings.push({code:'CONTACT_FRICTION',severity:84,title:'Contact route is hard to detect',solution:'prominent contact, callback and fast-message journey'});
   const dead=sig.filter(x=>x.status===0||x.status>=400);if(dead.length)findings.push({code:'DEAD_LINKS',severity:Math.min(82,50+dead.length*8),title:`${dead.length} audited page${dead.length===1?'':'s'} failed to load`,solution:'broken-link and customer-journey repair'});
   if(!sig[0]?.https)findings.push({code:'NO_HTTPS',severity:90,title:'Website is not using HTTPS',solution:'secure HTTPS and deployment setup'});
-  return {pages:sig,summary:{audited:urls.length,working:good.length,failed:dead.length,forms:good.reduce((a,x)=>a+x.forms,0),hasQuote:good.some(x=>x.hasQuote),hasBooking:good.some(x=>x.hasBooking),hasContact:good.some(x=>x.hasContact),hasCta:good.some(x=>x.hasCta)},findings,rawHomeHtml:pages[0]?.html||''};
+  const allHtml=pages.map(p=>p.html).join('\n');
+  const allLinks=[...allHtml.matchAll(/href=["']([^"']+)/gi)].map(m=>absolutize(m[1],website));
+  const contacts=extractContactsDeep(allHtml,allLinks,website);
+  return {pages:sig,summary:{audited:urls.length,working:good.length,failed:dead.length,forms:good.reduce((a,x)=>a+x.forms,0),hasQuote:good.some(x=>x.hasQuote),hasBooking:good.some(x=>x.hasBooking),hasContact:good.some(x=>x.hasContact),hasCta:good.some(x=>x.hasCta)},findings,contacts,rawHomeHtml:pages[0]?.html||''};
 }
 
 export function identityFingerprint(p={}){
