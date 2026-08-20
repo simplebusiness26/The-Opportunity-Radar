@@ -49,6 +49,10 @@ const SCHEMA = [
     delivery_cost REAL,
     notes TEXT DEFAULT '',
     created_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS rh_saved (
+    prospect_id TEXT PRIMARY KEY REFERENCES rh_prospects(id) ON DELETE CASCADE,
+    saved_at TEXT NOT NULL
   )`
 ];
 
@@ -75,17 +79,35 @@ export class RevenueRepository {
       name=excluded.name,address=excluded.address,website=excluded.website,phone=excluded.phone,category=excluded.category,
       rating=excluded.rating,rating_count=excluded.rating_count,updated_at=excluded.updated_at`)
       .bind(prospectId, p.externalId, p.name, p.address, p.website, p.phone, p.category, p.rating, p.ratingCount, p.source, now(), now()).run();
-    return this.db.prepare(`SELECT * FROM rh_prospects WHERE source=? AND external_id=?`).bind(p.source, p.externalId).first();
+    return this.db.prepare(`SELECT p.*, CASE WHEN s.prospect_id IS NULL THEN 0 ELSE 1 END saved
+      FROM rh_prospects p LEFT JOIN rh_saved s ON s.prospect_id=p.id WHERE p.source=? AND p.external_id=?`).bind(p.source, p.externalId).first();
   }
 
-  async list(limit = 50) {
+  async list(limit = 50, savedOnly = false) {
     await this.ensureSchema();
-    return (await this.db.prepare(`SELECT * FROM rh_prospects ORDER BY score DESC, updated_at DESC LIMIT ?`).bind(limit).all()).results;
+    const where = savedOnly ? `WHERE s.prospect_id IS NOT NULL` : '';
+    return (await this.db.prepare(`SELECT p.*, CASE WHEN s.prospect_id IS NULL THEN 0 ELSE 1 END saved
+      FROM rh_prospects p LEFT JOIN rh_saved s ON s.prospect_id=p.id ${where}
+      ORDER BY saved DESC, p.score DESC, p.updated_at DESC LIMIT ?`).bind(limit).all()).results;
   }
 
   async get(prospectId) {
     await this.ensureSchema();
-    return this.db.prepare(`SELECT * FROM rh_prospects WHERE id=?`).bind(prospectId).first();
+    return this.db.prepare(`SELECT p.*, CASE WHEN s.prospect_id IS NULL THEN 0 ELSE 1 END saved
+      FROM rh_prospects p LEFT JOIN rh_saved s ON s.prospect_id=p.id WHERE p.id=?`).bind(prospectId).first();
+  }
+
+  async setSaved(prospectId, saved = true) {
+    await this.ensureSchema();
+    if (saved) await this.db.prepare(`INSERT OR REPLACE INTO rh_saved (prospect_id, saved_at) VALUES (?, ?)`).bind(prospectId, now()).run();
+    else await this.db.prepare(`DELETE FROM rh_saved WHERE prospect_id=?`).bind(prospectId).run();
+    return this.get(prospectId);
+  }
+
+  async savedCount() {
+    await this.ensureSchema();
+    const row = await this.db.prepare(`SELECT COUNT(*) count FROM rh_saved`).first();
+    return Number(row?.count || 0);
   }
 
   async saveInvestigation(prospectId, data) {
@@ -120,7 +142,7 @@ export class RevenueRepository {
     await this.ensureSchema();
     const stages = (await this.db.prepare(`SELECT stage, COUNT(*) count FROM rh_prospects GROUP BY stage`).all()).results;
     const totals = await this.db.prepare(`SELECT COUNT(DISTINCT p.id) prospects, COALESCE(SUM(o.paid_amount),0) paid, COALESCE(SUM(o.delivery_cost),0) costs FROM rh_prospects p LEFT JOIN rh_outcomes o ON p.id=o.prospect_id`).first();
-    const top = (await this.db.prepare(`SELECT id,name,category,score,primary_problem,offer_price,stage FROM rh_prospects ORDER BY score DESC LIMIT 10`).all()).results;
-    return { stages, totals, top };
+    const top = (await this.db.prepare(`SELECT p.id,p.name,p.category,p.score,p.primary_problem,p.offer_price,p.stage,CASE WHEN s.prospect_id IS NULL THEN 0 ELSE 1 END saved FROM rh_prospects p LEFT JOIN rh_saved s ON s.prospect_id=p.id ORDER BY saved DESC,p.score DESC LIMIT 10`).all()).results;
+    return { stages, totals, saved: await this.savedCount(), top };
   }
 }
