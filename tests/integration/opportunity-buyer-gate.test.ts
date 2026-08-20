@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { signUp } from '../../src/application/auth/sign-up';
 import { recordSignal } from '../../src/application/signals/record-signal';
-import { seedProblemClusters } from '../../src/application/clusters/seed-problem-clusters';
+import { createCluster } from '../../src/application/clusters/cluster-evidence';
 import { frameOpportunitiesFromReadyClusters } from '../../src/application/opportunities/frame-from-clusters';
 import type { SystemCtx, WorkspaceCtx } from '../../src/domain/types/identity';
 import { controllableClock } from '../../src/adapters/clock/index';
@@ -69,8 +69,15 @@ describe('automatic opportunity buyer gate', () => {
       await recordSignal(deps, ownerCtx, { ...signal, observedAt: NOW });
     }
 
-    const seeded = await seedProblemClusters(deps, systemCtx);
-    expect(seeded.created).toBeGreaterThanOrEqual(1);
+    const evidence = await deps.repos.evidence.listClusterable(ownerCtx.workspaceId, {});
+    expect(evidence.length).toBeGreaterThanOrEqual(2);
+
+    await createCluster(deps, ownerCtx, {
+      title: 'Manual invoice approval wastes time and money',
+      problemStatement: 'Repeated independent evidence indicates this problem: invoice approvals are handled manually, take hours and cause missed payments.',
+      targetCustomer: null,
+      evidenceUnitIds: evidence.map((row) => row.id),
+    });
 
     const framed = await frameOpportunitiesFromReadyClusters(deps, systemCtx);
     expect(framed.created).toBe(0);
