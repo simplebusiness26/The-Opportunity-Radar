@@ -19,13 +19,28 @@ const EXTRA_COLUMNS={
  company_number:'TEXT',company_status:'TEXT',identity_confidence:'REAL DEFAULT 0',identity_json:'TEXT',brand_json:'TEXT',audit_json:'TEXT',opportunity_code:'TEXT',expected_margin:'REAL',expected_effort_minutes:'INTEGER',sales_stage:"TEXT DEFAULT 'new'",next_action:'TEXT',last_hunted_at:'TEXT',website_fingerprint:'TEXT',last_audited_at:'TEXT',dossier_version:"TEXT DEFAULT 'v0.4'"
 };
 
+function isDuplicateColumnError(error){return /duplicate column name/i.test(String(error?.message||error||''))}
+
 export class RevenueRepository{
  constructor(db){this.db=db;this.schemaReady=null}
  async ensureSchema(){
   if(!this.schemaReady)this.schemaReady=(async()=>{
    await this.db.batch(BASE_SCHEMA.map(sql=>this.db.prepare(sql)));
-   const info=(await this.db.prepare('PRAGMA table_info(rh_prospects)').all()).results||[];const cols=new Set(info.map(x=>x.name));
-   for(const [name,type] of Object.entries(EXTRA_COLUMNS))if(!cols.has(name))await this.db.prepare(`ALTER TABLE rh_prospects ADD COLUMN ${name} ${type}`).run();
+   const info=(await this.db.prepare('PRAGMA table_info(rh_prospects)').all()).results||[];
+   const cols=new Set(info.map(x=>x.name));
+   for(const [name,type] of Object.entries(EXTRA_COLUMNS)){
+    if(cols.has(name))continue;
+    try{
+     await this.db.prepare(`ALTER TABLE rh_prospects ADD COLUMN ${name} ${type}`).run();
+     cols.add(name);
+    }catch(error){
+     // Multiple Worker requests can race during a first deployment. If another
+     // request added the same column after our PRAGMA read, the migration is
+     // already complete and should not make the application unavailable.
+     if(!isDuplicateColumnError(error))throw error;
+     cols.add(name);
+    }
+   }
   })().catch(e=>{this.schemaReady=null;throw e});
   await this.schemaReady;
  }
