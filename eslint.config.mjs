@@ -82,6 +82,13 @@ export default tseslint.config(
     },
   },
   {
+    // Revenue Hunter's doctor/dry-run commands are terminal programs; printing
+    // their result is their interface. This lint exception does not change the
+    // Revenue Hunter runtime or its decision/scoring logic.
+    files: ['systems/revenue-hunter/scripts/**/*.mjs'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     // The service worker runs in a worker global scope, not a page.
     files: ['public/sw.js'],
     languageOptions: {
