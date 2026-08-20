@@ -4,7 +4,7 @@
   "compatibility_date": "2026-08-19",
   "browser": { "binding": "BROWSER", "remote": true },
   "d1_databases": [
-    { "binding": "REVENUE_DB", "database_name": "revenue-hunter", "database_id": "REPLACE_WITH_D1_DATABASE_ID" }
+    { "binding": "REVENUE_DB", "database_name": "revenue-hunter", "database_id": "233a8d94-1778-49e8-81a9-a6104f529d07" }
   ],
   "triggers": { "crons": ["0 6 * * *"] },
   "observability": { "enabled": true }
