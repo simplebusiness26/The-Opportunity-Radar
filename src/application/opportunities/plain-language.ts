@@ -80,6 +80,16 @@ function validationMove(kind: string | null | undefined, economicProofCount: num
   }
 }
 
+function manualOpening(opportunity: OpportunityRow, problem: string): string {
+  const customer = oneLine(opportunity.targetCustomer);
+  const thesis = oneLine(opportunity.thesis);
+  if (customer && problem) {
+    return `Solve this specific problem for ${customer}: ${problem}`;
+  }
+  if (customer && thesis) return `For ${customer}: ${thesis}`;
+  return thesis || 'No concrete commercial opening has been recorded yet.';
+}
+
 /** Human-facing explanation of an opportunity that has earned its place in Opps. */
 export function explainOpportunity(
   opportunity: OpportunityRow,
@@ -111,7 +121,7 @@ export function explainOpportunity(
     : problem || `Radar has not yet established the specific customer problem behind “${headline}”.`;
 
   const opening = oneLine(qualification.specificOpening);
-  const opportunityText = opening || oneLine(opportunity.thesis) || 'No concrete commercial opening has been recorded yet.';
+  const opportunityText = opening || (isAuto ? oneLine(opportunity.thesis) : manualOpening(opportunity, problem));
 
   let nextStep: string;
   if (!score) {
