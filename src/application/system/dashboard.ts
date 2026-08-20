@@ -1,3 +1,4 @@
+import { isOwnerFacingOpportunity } from '../opportunities/commercial-visibility';
 import { describeConfidenceBand } from '../../domain/scoring/confidence';
 import { ACTIVE_STATES } from '../../domain/state/opportunity-state';
 import type { Repositories } from '../../ports/repositories/index';
@@ -39,7 +40,8 @@ export async function buildDashboard(
   workspaceId: string,
   since: Date,
 ): Promise<DashboardView> {
-  const opportunities = await repos.opportunities.list(workspaceId, { includeDemo: true, limit: 200 });
+  const allOpportunities = await repos.opportunities.list(workspaceId, { includeDemo: true, limit: 200 });
+  const opportunities = allOpportunities.filter(isOwnerFacingOpportunity);
   const scores = await repos.scores.currentForMany(
     workspaceId,
     opportunities.map((row) => row.id),
@@ -65,7 +67,7 @@ export async function buildDashboard(
     bestMove: chooseBestMove(ranked),
     top: ranked.slice(0, 5),
     changes: deltas
-      .filter((delta) => Math.abs(delta.delta) >= 3)
+      .filter((delta) => titleById.has(delta.opportunityId) && Math.abs(delta.delta) >= 3)
       .map((delta) => ({
         opportunityId: delta.opportunityId,
         opportunityTitle: titleById.get(delta.opportunityId) ?? 'Unknown',
@@ -97,9 +99,9 @@ function chooseBestMove(
         kind: 'no_action',
         opportunity: null,
         score: null,
-        headline: 'Opportunities found — Radar is not ready to pick one yet',
+        headline: 'Qualified opportunities found — Radar is not ready to pick one yet',
         reasoning:
-          `Radar has detected ${ranked.length} ${ranked.length === 1 ? 'opportunity' : 'opportunities'}, but none has been scored yet. Open the cards below to see the problem, the possible opening and the safest next step.`,
+          `Radar has ${ranked.length} commercially qualified ${ranked.length === 1 ? 'opportunity' : 'opportunities'}, but none has been scored yet. Open the cards below to see the actual problem, the commercial opening and the next validation step.`,
         doNotYet: ['Do not start building just because an opportunity has been detected.'],
       };
     }
@@ -108,10 +110,10 @@ function chooseBestMove(
       kind: 'no_action',
       opportunity: null,
       score: null,
-      headline: 'Nothing strong enough to act on yet',
+      headline: 'No commercially qualified opportunity yet',
       reasoning:
-        'Radar is still collecting evidence. When a repeated problem becomes a real opportunity, it will appear below.',
-      doNotYet: ['Do not build without a clear problem and evidence that people care about it.'],
+        'Radar is still collecting signals and grouping genuine problems. Trends and product chatter stay out of this list until there is evidence of a real problem and a commercial mechanism.',
+      doNotYet: ['Do not build without a clear problem and evidence that people care enough to change behaviour, spend money or use a workaround.'],
     };
   }
 
@@ -156,7 +158,7 @@ function chooseBestMove(
     opportunity: null,
     score: null,
     headline: 'Nothing is strong enough to commit time to yet',
-    reasoning: `${scored.length} ${scored.length === 1 ? 'opportunity has' : 'opportunities have'} been scored, but none is both attractive enough and proven enough. Keep watching rather than forcing a build.`,
+    reasoning: `${scored.length} ${scored.length === 1 ? 'qualified opportunity has' : 'qualified opportunities have'} been scored, but none is both attractive enough and proven enough. Keep watching rather than forcing a build.`,
     doNotYet: ['Do not start building just to stay busy.'],
   };
 }

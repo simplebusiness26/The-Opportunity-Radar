@@ -52,7 +52,7 @@ test('a fresh installation reports manual mode honestly', async ({ page }) => {
 test('an empty installation says nothing warrants action, rather than inventing one', async ({ page }) => {
   await signUpFresh(page, 'Empty Radar');
 
-  await expect(page.getByText('Nothing strong enough to act on yet')).toBeVisible();
+  await expect(page.getByText('No commercially qualified opportunity yet')).toBeVisible();
   await expect(page.getByText('Do not do yet')).toBeVisible();
 });
 
@@ -281,7 +281,7 @@ test('an empty installation shows empty states, not zeros dressed as metrics', a
   await signUpFresh(page, 'Genuinely Empty');
 
   await page.goto('/opportunities');
-  await expect(page.getByText('Nothing under consideration')).toBeVisible();
+  await expect(page.getByText('No qualified opportunities yet')).toBeVisible();
 
   await page.goto('/signals');
   await expect(page.getByText('Nothing observed yet')).toBeVisible();

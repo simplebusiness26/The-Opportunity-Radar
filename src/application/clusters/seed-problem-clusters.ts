@@ -14,7 +14,7 @@ import {
   unpackEmbedding,
 } from '../../domain/dedupe/embedding';
 import { tokenize } from '../../domain/dedupe/fingerprint';
-import { isEligibleForAutomaticOpportunityFraming } from '../../domain/opportunities/automatic-framing-safety';
+import { isEligibleForAutomaticProblemClustering } from '../../domain/opportunities/automatic-framing-safety';
 import type { ActorCtx } from '../../domain/types/identity';
 import type { ClusterableEvidenceRow } from '../../ports/repositories/intelligence';
 import { createCluster, type ClusterDeps } from './cluster-evidence';
@@ -112,14 +112,6 @@ function asCentroid(group: SeedGroup): ClusterCentroid {
   };
 }
 
-/**
- * Cheap blocking before the expensive similarity calculation.
- *
- * lexical-v1 already requires token overlap before trusting its vector, so
- * comparing an item against groups with no meaningful shared token cannot
- * produce a valid lexical match. Entity keys are included because they can
- * independently justify a cluster join.
- */
 function blockingKeys(evidence: ClusterableEvidence): string[] {
   const keys = new Set<string>();
 
@@ -149,16 +141,10 @@ function problemStatement(value: string): string {
 /**
  * Seeds real problem clusters from repeated, still-unclustered evidence.
  *
- * The existing assignment engine intentionally refuses to turn one observation
- * into a problem. This keeps that rule: loose evidence is grouped provisionally,
- * then only groups already satisfying the normal readiness gate are persisted.
- * A singleton can never create a market problem by itself.
- *
- * Serverless runs inspect one rotating batch at a time. The larger read is
- * cheap and lets batches rotate across the whole loose-evidence pool; the
- * expensive similarity work stays bounded. Once any batch creates a real
- * cluster, the normal assignment job can absorb matching evidence from later
- * batches into it.
+ * Product launches, articles, repo announcements and otherwise-unclassified
+ * activity remain Signals. Only evidence that explicitly describes pain,
+ * demand, spending, a workaround, labour, an incumbent weakness, a supply gap
+ * or a regulatory burden is allowed into this problem-clustering path.
  */
 export async function seedProblemClusters(
   deps: ClusterDeps,
@@ -177,7 +163,10 @@ export async function seedProblemClusters(
     limit: options.limit ?? 1000,
   });
   const allRows = fetchedRows.filter((row) =>
-    isEligibleForAutomaticOpportunityFraming(`${row.claimText} ${row.bodyText}`),
+    isEligibleForAutomaticProblemClustering(
+      `${row.claimText} ${row.bodyText}`,
+      row.signalTypeKey,
+    ),
   );
 
   if (allRows.length === 0) {
