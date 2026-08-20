@@ -116,7 +116,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
           <QuickSection label="Why us" value={plain.whyUs} />
           <QuickSection label="What we can do now" value={plain.nextStep} accent />
           <QuickSection label="Why Radar believes this is real" value={plain.whyItAppeared} />
-          <QuickSection label="What still needs proving" value={plain.whatStillNeedsProof} />
+          <QuickSection label="What we still need to prove" value={plain.whatStillNeedsProof} />
           <div className="grid min-w-0 gap-3 border-t border-line pt-4 sm:grid-cols-2">
             <div className="min-w-0 rounded-md border border-line p-3">
               <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">Worth doing?</p>
