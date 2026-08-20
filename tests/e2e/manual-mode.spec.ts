@@ -52,9 +52,7 @@ test('a fresh installation reports manual mode honestly', async ({ page }) => {
 test('an empty installation says nothing warrants action, rather than inventing one', async ({ page }) => {
   await signUpFresh(page, 'Empty Radar');
 
-  await expect(
-    page.getByText('NO HIGH-CONFIDENCE OPPORTUNITY CURRENTLY WARRANTS ACTION'),
-  ).toBeVisible();
+  await expect(page.getByText('Nothing strong enough to act on yet')).toBeVisible();
   await expect(page.getByText('Do not do yet')).toBeVisible();
 });
 
@@ -99,7 +97,7 @@ test('the full manual loop works with no AI configured', async ({ page }) => {
   await expect(page.getByText('Score breakdown')).toBeVisible();
 
   // The gaps must be stated rather than hidden behind a confident number.
-  await expect(page.getByText('What has not been established')).toBeVisible();
+  await expect(page.getByText('What still needs proving')).toBeVisible();
 
   // And the reasoning must be inspectable.
   await expect(page.getByText('Why this confidence')).toBeVisible();
