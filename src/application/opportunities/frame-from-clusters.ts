@@ -5,6 +5,7 @@ import {
   type CommercialQualification,
 } from '../../domain/opportunities/automatic-framing-safety';
 import type { ActorCtx } from '../../domain/types/identity';
+import type { ClusterableEvidenceRow } from '../../ports/repositories/intelligence';
 import type { ClusterRow, OpportunityRow } from '../../ports/repositories/opportunities';
 import type { LifecycleDeps } from './lifecycle';
 import { createOpportunity } from './lifecycle';
@@ -25,6 +26,53 @@ interface QualifiedCluster {
   evidenceUnitIds: string[];
   qualification: CommercialQualification;
   opening: string;
+  targetCustomer: string | null;
+}
+
+const SOURCE_ACTIVITY_HEADLINE = /^\s*(?:show|ask|tell|launch)\s+hn\s*:/i;
+
+const CUSTOMER_PATTERNS: readonly RegExp[] = [
+  /\b(?:independent|small|local)?\s*(?:restaurants?|cafes?|pubs?|hotels?)\b/i,
+  /\b(?:independent|small|local)?\s*(?:roofers?|roofing companies|builders?|construction companies|tradespeople|electricians?|plumbers?)\b/i,
+  /\b(?:small|local)?\s*(?:accountants?|accounting firms|bookkeepers?|law firms|solicitors?|estate agents?|property managers?|landlords?)\b/i,
+  /\b(?:small|local)?\s*(?:retailers?|ecommerce businesses|online sellers?|agencies|marketing agencies|clinics?|dentists?)\b/i,
+  /\b(?:freelancers?|developers?|software teams?|engineering teams?|designers?|creators?)\b/i,
+  /\b(?:small businesses|small business owners|SMEs|startups?|founders?|operations teams?|sales teams?|support teams?)\b/i,
+];
+
+function inferCustomerFromText(text: string): string | null {
+  for (const pattern of CUSTOMER_PATTERNS) {
+    const match = text.match(pattern);
+    if (match?.[0]) return match[0].replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+function inferTargetCustomer(
+  cluster: ClusterRow,
+  evidence: readonly ClusterableEvidenceRow[],
+): string | null {
+  const explicit = cluster.targetCustomer?.trim();
+  if (explicit) return explicit;
+
+  const clusterMatch = inferCustomerFromText(`${cluster.title} ${cluster.problemStatement}`);
+  if (clusterMatch) return clusterMatch;
+
+  // The representative cluster headline may omit the audience even when the
+  // corroborating evidence names it repeatedly. Read the whole evidence set
+  // before concluding that Radar cannot identify the buyer.
+  for (const row of evidence) {
+    const match = inferCustomerFromText(`${row.claimText} ${row.bodyText}`);
+    if (match) return match;
+  }
+  return null;
+}
+
+function failQualification(
+  qualification: CommercialQualification,
+  reason: string,
+): CommercialQualification {
+  return { ...qualification, eligible: false, reason };
 }
 
 async function qualifyCluster(
@@ -36,14 +84,34 @@ async function qualifyCluster(
   const evidence = evidenceUnitIds.length
     ? await deps.repos.evidence.listClusterable(ctx.workspaceId, { evidenceUnitIds })
     : [];
-  const qualification = qualifyCommercialOpportunity(evidence);
-  const opening = describeCommercialOpening(cluster.problemStatement, qualification.strongestSignalType);
-  return { cluster, evidenceUnitIds, qualification, opening };
+
+  const targetCustomer = inferTargetCustomer(cluster, evidence);
+  let qualification = qualifyCommercialOpportunity(evidence);
+
+  if (SOURCE_ACTIVITY_HEADLINE.test(cluster.title)) {
+    qualification = failQualification(
+      qualification,
+      'This is source activity or a discussion prompt, not a commercially established customer problem.',
+    );
+  }
+
+  if (!targetCustomer) {
+    qualification = failQualification(
+      qualification,
+      'Radar cannot yet name the buyer or customer affected by this problem.',
+    );
+  }
+
+  const opening = targetCustomer
+    ? `${describeCommercialOpening(cluster.problemStatement, qualification.strongestSignalType)} for ${targetCustomer}`
+    : describeCommercialOpening(cluster.problemStatement, qualification.strongestSignalType);
+
+  return { cluster, evidenceUnitIds, qualification, opening, targetCustomer };
 }
 
 function qualificationNote(qualified: QualifiedCluster, evaluatedAt: Date): Record<string, unknown> {
   return {
-    version: 1,
+    version: 2,
     eligible: qualified.qualification.eligible,
     reason: qualified.qualification.reason,
     problemProofCount: qualified.qualification.problemProofCount,
@@ -52,6 +120,7 @@ function qualificationNote(qualified: QualifiedCluster, evaluatedAt: Date): Reco
     independentOrigins: qualified.qualification.independentOrigins,
     strongestSignalType: qualified.qualification.strongestSignalType,
     specificOpening: qualified.opening,
+    targetCustomer: qualified.targetCustomer,
     evaluatedAt: evaluatedAt.toISOString(),
   };
 }
@@ -66,6 +135,7 @@ async function saveQualification(
     ctx.workspaceId,
     opportunity.id,
     {
+      targetCustomer: qualified.targetCustomer ?? opportunity.targetCustomer,
       notes: {
         ...opportunity.notes,
         commercialQualification: qualificationNote(qualified, deps.clock.now()),
@@ -80,10 +150,10 @@ async function saveQualification(
  * opportunities.
  *
  * Repetition alone is not enough. The problem must be independently
- * corroborated and at least one member must show a commercial mechanism such
- * as active demand, spending, a workaround, paid labour, a supply gap or a weak
- * incumbent. Product launches and trend chatter remain Signals; repeated pain
- * without commercial behaviour remains a Problem.
+ * corroborated, identify a buyer, and include a concrete commercial mechanism
+ * such as active demand, spending, a workaround, paid labour, a supply gap or
+ * a weak incumbent. Product launches, questions and trend chatter remain
+ * Signals; repeated pain without a buyer/commercial mechanism remains a Problem.
  */
 export async function frameOpportunitiesFromReadyClusters(
   deps: LifecycleDeps,
@@ -99,9 +169,6 @@ export async function frameOpportunitiesFromReadyClusters(
     deps.repos.opportunities.list(ctx.workspaceId, { includeDemo: false, limit: 250 }),
   ]);
 
-  // Existing auto-framed rows are non-destructively re-evaluated. The UI hides
-  // them until this note says `eligible: true`, so legacy false positives stop
-  // polluting the opportunity feed without throwing away their source data.
   let requalifiedExisting = 0;
   let disqualifiedExisting = 0;
   const legacy = existing
@@ -155,18 +222,17 @@ export async function frameOpportunitiesFromReadyClusters(
   const createdOpportunityIds: string[] = [];
 
   for (const qualified of qualifiedClusters) {
-    const { cluster, evidenceUnitIds, qualification, opening } = qualified;
-    const audience = cluster.targetCustomer ? ` for ${cluster.targetCustomer}` : '';
+    const { cluster, evidenceUnitIds, qualification, opening, targetCustomer } = qualified;
     const opportunity = await createOpportunity(deps, ctx, {
       title: cluster.title,
       thesis:
-        `${opening}${audience}. ` +
+        `${opening}. ` +
         `This was promoted because ${qualification.problemProofCount} problem evidence unit(s) ` +
         `from ${qualification.independentOrigins} independent origin(s) include ` +
         `${qualification.commercialProofCount} concrete commercial signal(s).`,
       typeKey: 'new_product',
       clusterId: cluster.id,
-      targetCustomer: cluster.targetCustomer,
+      targetCustomer,
       problemStatement: cluster.problemStatement,
       whyNow:
         `${qualification.reason} The cluster has ${cluster.uniqueEvidenceCount} distinct evidence unit(s), ` +
@@ -182,7 +248,7 @@ export async function frameOpportunitiesFromReadyClusters(
         notes: {
           ...opportunity.notes,
           autoFraming: {
-            version: 2,
+            version: 3,
             provisionalType: true,
             sourceClusterId: cluster.id,
             uniqueEvidenceCount: cluster.uniqueEvidenceCount,

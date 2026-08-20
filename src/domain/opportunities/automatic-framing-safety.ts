@@ -10,9 +10,9 @@ const EXCLUDED_AUTOMATIC_OPPORTUNITY_PATTERNS: readonly RegExp[] = [
   /\b(?:dangerous challenge|stunt challenge|extreme stunt)\b/i,
 ];
 
-/** Product/news activity is useful market intelligence, but it is not customer pain. */
+/** Product/news/discussion activity is useful market intelligence, but it is not customer pain. */
 const SOURCE_ACTIVITY_ONLY_PATTERNS: readonly RegExp[] = [
-  /^\s*(?:show|launch|tell)\s+hn\s*:/i,
+  /^\s*(?:show|ask|launch|tell)\s+hn\s*:/i,
   /^\s*(?:introducing|announcing|released?|launching|open[- ]sourcing)\b/i,
   /^\s*(?:github|gitlab)\s*:\s*/i,
   /\b(?:new release|release notes|changelog|version\s+\d+(?:\.\d+)*)\b/i,
@@ -50,15 +50,6 @@ export const ECONOMIC_PROOF_SIGNAL_TYPES: ReadonlySet<SignalTypeKey> = new Set([
   'supply_gap',
 ]);
 
-/**
- * Automatic framing is intentionally narrower than passive evidence storage.
- *
- * Radar may observe public discussion for many reasons, but the autonomous
- * system must not convert age-restricted or inherently dangerous material into
- * a business recommendation. This gate runs before a problem cluster can be
- * promoted automatically. Manual moderation can evolve independently without
- * weakening the autonomous boundary.
- */
 export function isEligibleForAutomaticOpportunityFraming(text: string): boolean {
   return !EXCLUDED_AUTOMATIC_OPPORTUNITY_PATTERNS.some((pattern) => pattern.test(text));
 }
@@ -67,12 +58,6 @@ export function looksLikeSourceActivityOnly(text: string): boolean {
   return SOURCE_ACTIVITY_ONLY_PATTERNS.some((pattern) => pattern.test(text.trim()));
 }
 
-/**
- * A problem cluster must be made from actual problem evidence, not merely
- * discussion volume. Legacy rows classified as `pain` are re-checked against
- * explicit problem language so old product-launch false positives cannot leak
- * through after this rule ships.
- */
 export function isEligibleForAutomaticProblemClustering(
   text: string,
   signalTypeKey: SignalTypeKey,
@@ -114,14 +99,6 @@ const SIGNAL_PRIORITY: readonly SignalTypeKey[] = [
   'pain',
 ];
 
-/**
- * The opportunity feed is deliberately stricter than the problem feed.
- *
- * Two independent pieces of genuine problem evidence are necessary, and at
- * least one must show a commercial mechanism: active demand, money/labour,
- * a workaround, a supply gap, or a repeated weakness in something people use.
- * Pure trends and product chatter can never satisfy this gate.
- */
 export function qualifyCommercialOpportunity(
   evidence: readonly CommercialEvidenceLike[],
 ): CommercialQualification {

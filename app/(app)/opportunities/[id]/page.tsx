@@ -35,12 +35,14 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   const opportunity = await c.repos.opportunities.findById(ctx.workspaceId, id);
   if (!opportunity) notFound();
 
-  const [score, transitions, attached, investigation, mode] = await Promise.all([
+  const [score, transitions, attached, investigation, mode, capabilities, assets] = await Promise.all([
     c.repos.scores.current(ctx.workspaceId, id),
     c.repos.opportunities.listTransitions(id),
     c.repos.opportunities.evidenceFor(id),
     readInvestigationLog(c.repos, ctx, id),
     readModeStatus(c.repos, ctx.workspaceId),
+    c.repos.graph.listCapabilities(ctx.workspaceId),
+    c.repos.graph.listAssets(ctx.workspaceId),
   ]);
 
   const memoryDeps = { repos: c.repos, tx: c.tx, clock: c.clock };
@@ -68,7 +70,10 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
 
   const type = OPPORTUNITY_TYPES[opportunity.typeKey];
   const band = score ? describeConfidenceBand(score.confidence) : null;
-  const plain = explainOpportunity(opportunity, score);
+  const plain = explainOpportunity(opportunity, score, {
+    capabilityNames: capabilities.map((capability) => capability.name),
+    assetNames: assets.map((asset) => asset.name),
+  });
   const rawTitleDiffers = plain.headline !== opportunity.title;
   const verdict = !score
     ? 'Not decided yet — Radar needs to score and validate it first.'
@@ -103,12 +108,15 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       </div>
 
       <Panel className="min-w-0 overflow-hidden border-accent/30">
-        <PanelHeader title="Quick decision view" hint="Read this first. The technical evidence is below." />
+        <PanelHeader title="Decision brief" hint="This should tell you what the opportunity is in under a minute." />
         <div className="space-y-4 px-4 py-4">
+          <QuickSection label="Who has the problem" value={plain.customer} />
           <QuickSection label="The problem" value={plain.problem} />
-          <QuickSection label="The opportunity" value={plain.opportunity} />
-          <QuickSection label="What we can do" value={plain.nextStep} accent />
-          <QuickSection label="Why Radar found it" value={plain.whyItAppeared} />
+          <QuickSection label="The commercial opportunity" value={plain.opportunity} />
+          <QuickSection label="Why us" value={plain.whyUs} />
+          <QuickSection label="What we can do now" value={plain.nextStep} accent />
+          <QuickSection label="Why Radar believes this is real" value={plain.whyItAppeared} />
+          <QuickSection label="What we still need to prove" value={plain.whatStillNeedsProof} />
           <div className="grid min-w-0 gap-3 border-t border-line pt-4 sm:grid-cols-2">
             <div className="min-w-0 rounded-md border border-line p-3">
               <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">Worth doing?</p>
