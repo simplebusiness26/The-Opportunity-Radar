@@ -5,6 +5,7 @@ import {
   type CommercialQualification,
 } from '../../domain/opportunities/automatic-framing-safety';
 import type { ActorCtx } from '../../domain/types/identity';
+import type { ClusterableEvidenceRow } from '../../ports/repositories/intelligence';
 import type { ClusterRow, OpportunityRow } from '../../ports/repositories/opportunities';
 import type { LifecycleDeps } from './lifecycle';
 import { createOpportunity } from './lifecycle';
@@ -39,14 +40,30 @@ const CUSTOMER_PATTERNS: readonly RegExp[] = [
   /\b(?:small businesses|small business owners|SMEs|startups?|founders?|operations teams?|sales teams?|support teams?)\b/i,
 ];
 
-function inferTargetCustomer(cluster: ClusterRow): string | null {
-  const explicit = cluster.targetCustomer?.trim();
-  if (explicit) return explicit;
-
-  const text = `${cluster.title} ${cluster.problemStatement}`;
+function inferCustomerFromText(text: string): string | null {
   for (const pattern of CUSTOMER_PATTERNS) {
     const match = text.match(pattern);
     if (match?.[0]) return match[0].replace(/\s+/g, ' ').trim();
+  }
+  return null;
+}
+
+function inferTargetCustomer(
+  cluster: ClusterRow,
+  evidence: readonly ClusterableEvidenceRow[],
+): string | null {
+  const explicit = cluster.targetCustomer?.trim();
+  if (explicit) return explicit;
+
+  const clusterMatch = inferCustomerFromText(`${cluster.title} ${cluster.problemStatement}`);
+  if (clusterMatch) return clusterMatch;
+
+  // The representative cluster headline may omit the audience even when the
+  // corroborating evidence names it repeatedly. Read the whole evidence set
+  // before concluding that Radar cannot identify the buyer.
+  for (const row of evidence) {
+    const match = inferCustomerFromText(`${row.claimText} ${row.bodyText}`);
+    if (match) return match;
   }
   return null;
 }
@@ -68,11 +85,9 @@ async function qualifyCluster(
     ? await deps.repos.evidence.listClusterable(ctx.workspaceId, { evidenceUnitIds })
     : [];
 
-  const targetCustomer = inferTargetCustomer(cluster);
+  const targetCustomer = inferTargetCustomer(cluster, evidence);
   let qualification = qualifyCommercialOpportunity(evidence);
 
-  // A discussion thread or launch headline is useful intelligence, but it is
-  // never itself a buyer/problem statement. Keep these out of Opportunities.
   if (SOURCE_ACTIVITY_HEADLINE.test(cluster.title)) {
     qualification = failQualification(
       qualification,
@@ -80,9 +95,6 @@ async function qualifyCluster(
     );
   }
 
-  // Owner-facing Opportunities must answer “who pays?”. If Radar cannot name a
-  // buyer from explicit cluster data or the repeated evidence, it stays a
-  // Problem until that missing fact is established.
   if (!targetCustomer) {
     qualification = failQualification(
       qualification,
