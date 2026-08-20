@@ -1,4 +1,4 @@
-import app from './worker.mjs';
+import app from './worker-entry.mjs';
 
 function withDashboardClient(html='') {
   const stripped = String(html).replace(/<script>[\s\S]*?<\/script>/i, '');
@@ -33,7 +33,6 @@ export default {
   }
 };
 
-// Kept as a string so this wrapper can serve the checked dashboard client without static assets.
 const DASHBOARD_CLIENT_SOURCE = `
 const $ = (s) => document.querySelector(s);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
