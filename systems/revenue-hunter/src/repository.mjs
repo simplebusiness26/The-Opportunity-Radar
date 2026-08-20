@@ -16,6 +16,7 @@ const BASE_SCHEMA=[
 ];
 
 const EXTRA_COLUMNS={
+ saved:'INTEGER NOT NULL DEFAULT 0',saved_at:'TEXT',
  company_number:'TEXT',company_status:'TEXT',identity_confidence:'REAL DEFAULT 0',identity_json:'TEXT',brand_json:'TEXT',audit_json:'TEXT',opportunity_code:'TEXT',expected_margin:'REAL',expected_effort_minutes:'INTEGER',sales_stage:"TEXT DEFAULT 'new'",next_action:'TEXT',last_hunted_at:'TEXT',website_fingerprint:'TEXT',last_audited_at:'TEXT',dossier_version:"TEXT DEFAULT 'v0.4'"
 };
 
@@ -34,9 +35,6 @@ export class RevenueRepository{
      await this.db.prepare(`ALTER TABLE rh_prospects ADD COLUMN ${name} ${type}`).run();
      cols.add(name);
     }catch(error){
-     // Multiple Worker requests can race during a first deployment. If another
-     // request added the same column after our PRAGMA read, the migration is
-     // already complete and should not make the application unavailable.
      if(!isDuplicateColumnError(error))throw error;
      cols.add(name);
     }
