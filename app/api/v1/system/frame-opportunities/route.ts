@@ -9,12 +9,20 @@ import { apiError, apiSuccess } from '../../../../../src/web/http/response';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+const FRAMING_BATCH_SIZE = 220;
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+
 /**
  * Runs the evidence -> problem -> opportunity bridge for serverless installs.
  *
  * It uses the existing scheduler token, has no browser/session access, and may
  * only frame provisional opportunities. The normal owner-only lifecycle gates
  * still prevent a system actor from committing money or entering execution.
+ *
+ * The expensive clustering work is intentionally bounded. Each quarter-hour
+ * heartbeat rotates to the next window of loose evidence, so a large workspace
+ * is covered over successive passes without one function trying to solve the
+ * whole history before Vercel's request deadline.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,10 +60,13 @@ export async function POST(request: NextRequest) {
       requestId: request.headers.get('x-request-id') ?? undefined,
     };
     const deps = { repos: c.repos, tx: c.tx, clock: c.clock };
+    const batchIndex = Math.floor(c.clock.now().getTime() / FIFTEEN_MINUTES_MS);
 
     const seeded = await seedProblemClusters(deps, ctx, {
-      limit: 500,
-      maxClusters: 8,
+      limit: 1000,
+      batchSize: FRAMING_BATCH_SIZE,
+      batchIndex,
+      maxClusters: 6,
     });
     const framed = await frameOpportunitiesFromReadyClusters(deps, ctx, {
       limit: 100,
