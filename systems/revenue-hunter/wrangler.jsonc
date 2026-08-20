@@ -6,6 +6,13 @@
   "d1_databases": [
     { "binding": "REVENUE_DB", "database_name": "revenue-hunter", "database_id": "233a8d94-1778-49e8-81a9-a6104f529d07" }
   ],
+  "vars": {
+    "RH_PROSPECTS_PER_RUN": "20",
+    "RH_DEEP_AUDITS_PER_RUN": "8",
+    "RH_BROWSER_ACTIONS_PER_RUN": "6",
+    "RH_AUDIT_PAGES_PER_SITE": "4",
+    "RH_CACHE_HOURS": "72"
+  },
   "triggers": { "crons": ["0 6 * * *"] },
   "observability": { "enabled": true }
 }
