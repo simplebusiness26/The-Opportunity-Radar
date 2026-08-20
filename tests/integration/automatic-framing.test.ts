@@ -64,6 +64,34 @@ const repeatedProblem = [
   },
 ];
 
+const unrelatedEvidence = [
+  {
+    title: 'Restaurant supplier invoices take hours to reconcile',
+    bodyText:
+      'Independent restaurants manually compare food supplier invoices against deliveries each week and want a faster reconciliation workflow.',
+  },
+  {
+    title: 'Design agencies forget software licence renewal dates',
+    bodyText:
+      'Small creative studios track design software licence renewals in spreadsheets and occasionally miss renewal deadlines.',
+  },
+  {
+    title: 'Property managers lose maintenance photos in message threads',
+    bodyText:
+      'Property maintenance teams receive repair photos in long message threads and struggle to associate them with the correct work order.',
+  },
+  {
+    title: 'Event organisers manually merge attendee check-in lists',
+    bodyText:
+      'Community event organisers export attendee lists from several registration tools and manually merge them before opening the doors.',
+  },
+  {
+    title: 'Independent shops struggle to update seasonal opening hours',
+    bodyText:
+      'Local retailers repeatedly update seasonal opening hours across several listings and want one place to maintain the information.',
+  },
+];
+
 describe('automatic evidence-to-opportunity framing', () => {
   beforeEach(async () => {
     await resetTestDatabase();
@@ -138,10 +166,10 @@ describe('automatic evidence-to-opportunity framing', () => {
   it('rotates through a bounded working set instead of processing the whole pool at once', async () => {
     const { deps, ownerCtx, systemCtx } = await setup();
 
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < unrelatedEvidence.length; index += 1) {
+      const signal = unrelatedEvidence[index]!;
       await recordSignal(deps, ownerCtx, {
-        title: `Unrelated observation ${index}`,
-        bodyText: `Distinct market observation number ${index} about category-${index} with no shared problem language.`,
+        ...signal,
         url: `https://source-${index}.example/post/${index}`,
         signalTypeKey: 'pain',
         evidenceClass: 'community',
