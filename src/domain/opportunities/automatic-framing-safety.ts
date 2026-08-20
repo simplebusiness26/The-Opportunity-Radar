@@ -19,8 +19,8 @@ const SOURCE_ACTIVITY_ONLY_PATTERNS: readonly RegExp[] = [
 ];
 
 const EXPLICIT_PAIN_PATTERNS: readonly RegExp[] = [
-  /\b(?:losing|we lose|lost|wastes?|wasting|frustrating|nightmare|struggl(?:e|ing)|broken|keeps? failing)\b/i,
-  /\b(?:too slow|too expensive|takes? hours|takes? days|manual(?:ly)?|by hand|miss(?:ing|ed)?|cannot|can't|unable to)\b/i,
+  /\b(?:lose|loses|losing|lost|wastes?|wasting|frustrating|nightmare|struggl(?:e|es|ing)|broken|keeps? failing)\b/i,
+  /\b(?:too slow|too expensive|takes? hours|takes? days|manual(?:ly)?|by hand|miss(?:es|ing|ed)?|cannot|can't|unable to)\b/i,
   /\b(?:pain point|problem|complaint|hate|annoying|difficult|hard to|fails? to)\b/i,
 ];
 
