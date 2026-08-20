@@ -1,6 +1,33 @@
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url, options = {}, { attempts = 4, baseDelay = 900 } = {}) {
+  let lastResponse;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      lastResponse = response;
+      if (![429, 502, 503, 504].includes(response.status)) return response;
+      if (attempt === attempts - 1) return response;
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : baseDelay * (2 ** attempt) + Math.floor(Math.random() * 350);
+      await sleep(waitMs);
+    } catch (error) {
+      if (attempt === attempts - 1) throw error;
+      await sleep(baseDelay * (2 ** attempt));
+    }
+  }
+  return lastResponse;
+}
+
 const json = async (res) => {
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.error?.message || body?.errors?.[0]?.details || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(body?.error?.message || body?.errors?.[0]?.details || `HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
+  }
   return body;
 };
 
@@ -33,26 +60,18 @@ const OSM_CATEGORIES = {
   cleaner: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
   cleaners: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
   cleaning: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
-  restaurant: { tags: [['amenity','restaurant']], name: '' },
-  restaurants: { tags: [['amenity','restaurant']], name: '' },
-  cafe: { tags: [['amenity','cafe']], name: '' },
-  cafes: { tags: [['amenity','cafe']], name: '' },
+  restaurant: { tags: [['amenity','restaurant']], name: '' }, restaurants: { tags: [['amenity','restaurant']], name: '' },
+  cafe: { tags: [['amenity','cafe']], name: '' }, cafes: { tags: [['amenity','cafe']], name: '' },
   garage: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|car repair' },
   garages: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|car repair' },
   mechanic: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|mechanic' },
   mechanics: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|mechanic' },
-  hairdresser: { tags: [['shop','hairdresser']], name: '' },
-  hairdressers: { tags: [['shop','hairdresser']], name: '' },
-  barber: { tags: [['shop','hairdresser']], name: 'barber' },
-  barbers: { tags: [['shop','hairdresser']], name: 'barber' },
-  dentist: { tags: [['amenity','dentist']], name: '' },
-  dentists: { tags: [['amenity','dentist']], name: '' },
-  solicitor: { tags: [['office','lawyer']], name: 'solicitor|law' },
-  solicitors: { tags: [['office','lawyer']], name: 'solicitor|law' },
-  lawyer: { tags: [['office','lawyer']], name: 'solicitor|law' },
-  lawyers: { tags: [['office','lawyer']], name: 'solicitor|law' },
-  accountant: { tags: [['office','accountant']], name: 'accountant|accountancy' },
-  accountants: { tags: [['office','accountant']], name: 'accountant|accountancy' }
+  hairdresser: { tags: [['shop','hairdresser']], name: '' }, hairdressers: { tags: [['shop','hairdresser']], name: '' },
+  barber: { tags: [['shop','hairdresser']], name: 'barber' }, barbers: { tags: [['shop','hairdresser']], name: 'barber' },
+  dentist: { tags: [['amenity','dentist']], name: '' }, dentists: { tags: [['amenity','dentist']], name: '' },
+  solicitor: { tags: [['office','lawyer']], name: 'solicitor|law' }, solicitors: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  lawyer: { tags: [['office','lawyer']], name: 'solicitor|law' }, lawyers: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  accountant: { tags: [['office','accountant']], name: 'accountant|accountancy' }, accountants: { tags: [['office','accountant']], name: 'accountant|accountancy' }
 };
 
 function splitBusinessQuery(query = '') {
@@ -68,11 +87,9 @@ async function geocodeLocation(location) {
   u.searchParams.set('format', 'jsonv2');
   u.searchParams.set('limit', '1');
   u.searchParams.set('countrycodes', 'gb');
-  const res = await fetch(u, { headers: { 'user-agent': 'RevenueHunter/0.2 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' } });
-  const rows = await json(res);
+  const rows = await json(await fetchWithRetry(u, { headers: { 'user-agent': 'RevenueHunter/0.3 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' } }, { attempts: 3, baseDelay: 1000 }));
   if (!Array.isArray(rows) || !rows[0]?.boundingbox) throw new Error(`Could not locate "${location}" with OpenStreetMap`);
   let [south, north, west, east] = rows[0].boundingbox.map(Number);
-  // Expand small city/town boxes so trades that serve the area from nearby industrial estates are not missed.
   const latPad = Math.max(0.045, (north - south) * 0.35);
   const lonPad = Math.max(0.065, (east - west) * 0.35);
   south -= latPad; north += latPad; west -= lonPad; east += lonPad;
@@ -92,7 +109,6 @@ function buildOverpassSelectors(config, box) {
   for (const [key, value] of config.tags) lines.push(`nwr["${key}"="${value}"]["name"]${bbox};`);
   if (config.name) {
     lines.push(`nwr["name"~"${config.name}",i]${bbox};`);
-    // Trade businesses are sometimes tagged only as offices/shops; name matching catches those records too.
     lines.push(`nwr["office"]["name"~"${config.name}",i]${bbox};`);
     lines.push(`nwr["shop"]["name"~"${config.name}",i]${bbox};`);
   }
@@ -104,13 +120,13 @@ export async function discoverBusinessesFromOsm({ query, pageSize = 20 }) {
   const config = OSM_CATEGORIES[category] || OSM_CATEGORIES[category.replace(/s$/, '')];
   if (!config) throw new Error(`Free discovery does not yet recognise category "${category}"`);
   const box = await geocodeLocation(location);
-  const q = `[out:json][timeout:25];(${buildOverpassSelectors(config, box)});out center tags ${Math.min(120, Math.max(20, Number(pageSize) * 6))};`;
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
+  const q = `[out:json][timeout:25];(${buildOverpassSelectors(config, box)});out center tags ${Math.min(100, Math.max(20, Number(pageSize) * 5))};`;
+  const response = await fetchWithRetry('https://overpass-api.de/api/interpreter', {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'RevenueHunter/0.2 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' },
+    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'RevenueHunter/0.3 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' },
     body: new URLSearchParams({ data: q })
-  });
-  const body = await json(res);
+  }, { attempts: 4, baseDelay: 1200 });
+  const body = await json(response);
   const seen = new Set();
   const mapped = [];
   for (const e of body.elements || []) {
@@ -136,12 +152,12 @@ export async function discoverBusinessesFromOsm({ query, pageSize = 20 }) {
   }
   return mapped
     .sort((a,b) => (Number(Boolean(b.website)) + Number(Boolean(b.phone))) - (Number(Boolean(a.website)) + Number(Boolean(a.phone))))
-    .slice(0, Math.min(30, Math.max(5, Number(pageSize))));
+    .slice(0, Math.min(25, Math.max(5, Number(pageSize))));
 }
 
 export async function discoverBusinesses({ apiKey, query, pageSize = 20 }) {
   if (!apiKey) return discoverBusinessesFromOsm({ query, pageSize });
-  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+  const response = await fetchWithRetry('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -150,7 +166,7 @@ export async function discoverBusinesses({ apiKey, query, pageSize = 20 }) {
     },
     body: JSON.stringify({ textQuery: query, pageSize: Math.min(20, Math.max(1, pageSize)) })
   });
-  const body = await json(res);
+  const body = await json(response);
   return (body.places || []).map(p => ({
     externalId: p.id,
     name: p.displayName?.text || 'Unknown business',
@@ -167,11 +183,17 @@ export async function discoverBusinesses({ apiKey, query, pageSize = 20 }) {
 export async function inspectWebsite({ browser, url }) {
   if (!url) return { markdown: '', links: [], title: '', error: 'No website' };
   if (!browser?.quickAction) throw new Error('Cloudflare Browser Run BROWSER binding is not configured');
-  const [markdownRes, linksRes] = await Promise.all([
-    browser.quickAction('markdown', { url, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } }),
-    browser.quickAction('links', { url, visibleLinksOnly: true, excludeExternalLinks: false, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } })
-  ]);
-  if (!markdownRes.ok) throw new Error(`Website inspection failed (${markdownRes.status})`);
+  let markdownRes;
+  let linksRes;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    [markdownRes, linksRes] = await Promise.all([
+      browser.quickAction('markdown', { url, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } }),
+      browser.quickAction('links', { url, visibleLinksOnly: true, excludeExternalLinks: false, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } })
+    ]);
+    if (markdownRes.status !== 429 && linksRes.status !== 429) break;
+    await sleep(800 * (2 ** attempt));
+  }
+  if (!markdownRes?.ok) throw new Error(`Website inspection failed (${markdownRes?.status || 'unknown'})`);
   const markdown = await markdownRes.text();
   const linksBody = await linksRes.json().catch(() => []);
   const links = Array.isArray(linksBody) ? linksBody : (linksBody?.result || []);
@@ -186,7 +208,7 @@ export async function findContacts({ apiKey, domain, limit = 5 }) {
   u.searchParams.set('domain', domain);
   u.searchParams.set('limit', String(Math.min(10, Math.max(1, limit))));
   u.searchParams.set('api_key', apiKey);
-  const body = await json(await fetch(u));
+  const body = await json(await fetchWithRetry(u));
   return (body?.data?.emails || []).map(e => ({
     email: e.value,
     type: e.type || '',
@@ -207,12 +229,12 @@ export async function createPaymentLink({ secretKey, amountGbp, description, pro
   params.set('line_items[0][price_data][product_data][name]', description || 'Digital services');
   params.set('line_items[0][quantity]', '1');
   params.set('metadata[revenue_hunter_prospect_id]', prospectId);
-  const res = await fetch('https://api.stripe.com/v1/payment_links', {
+  const response = await fetchWithRetry('https://api.stripe.com/v1/payment_links', {
     method: 'POST',
     headers: { 'authorization': `Bearer ${secretKey}`, 'content-type': 'application/x-www-form-urlencoded' },
     body: params
   });
-  const body = await json(res);
+  const body = await json(response);
   return { id: body.id, url: body.url, active: body.active };
 }
 
