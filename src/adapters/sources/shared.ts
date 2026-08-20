@@ -27,10 +27,6 @@ export function stripHtml(html: string): string {
 const TYPE_PATTERNS: Array<{ type: SignalTypeKey; patterns: RegExp[] }> = [
   {
     type: 'spending',
-    // Every pattern requires an actual currency amount. "We spend six hours a
-    // week" is a real cost but it is time, and reading it as money would
-    // inflate the willingness-to-pay evidence that the scoring engine leans on
-    // hardest.
     patterns: [
       /\b(?:we|i|they)\s+(?:pay|paid|spend|spent)\b[^.!?]{0,40}[£$€]\s*\d/i,
       /[£$€]\s*\d[^.!?]{0,40}\b(?:we|i|they)\s+(?:pay|paid|spend|spent)\b/i,
@@ -51,7 +47,6 @@ const TYPE_PATTERNS: Array<{ type: SignalTypeKey; patterns: RegExp[] }> = [
     patterns: [
       /\b(?:spreadsheet|google sheet|excel|zapier|manually|by hand|copy.?paste)\b/i,
       /\bwe (?:glue|stitch|duct.?tape)\b/i,
-      // Time spent by hand is a workaround signal, not a spending one.
       /\b(?:we|i|they)\s+(?:spend|spent)\b[^.!?]{0,30}\b(?:hours?|days?|weeks?)\b/i,
     ],
   },
@@ -81,7 +76,16 @@ const TYPE_PATTERNS: Array<{ type: SignalTypeKey; patterns: RegExp[] }> = [
   {
     type: 'pain',
     patterns: [
-      /\b(?:losing|we lose|wastes?|frustrating|nightmare|struggl(?:e|ing)|broken|keeps? failing)\b/i,
+      /\b(?:losing|we lose|lost|wastes?|wasting|frustrating|nightmare|struggl(?:e|ing)|broken|keeps? failing)\b/i,
+      /\b(?:too slow|too expensive|takes? hours|takes? days|manual(?:ly)?|by hand|miss(?:ing|ed)?|cannot|can't|unable to)\b/i,
+      /\b(?:pain point|problem|complaint|annoying|difficult|hard to|fails? to)\b/i,
+    ],
+  },
+  {
+    type: 'trend',
+    patterns: [
+      /^\s*(?:show|launch|tell)\s+hn\s*:/i,
+      /\b(?:introducing|announcing|new release|released today|launching today)\b/i,
     ],
   },
 ];
@@ -89,34 +93,22 @@ const TYPE_PATTERNS: Array<{ type: SignalTypeKey; patterns: RegExp[] }> = [
 /**
  * Classifies text by rule.
  *
- * Falls back to `pain` only when nothing matches, and the type is treated as a
- * first guess that AI extraction may later correct -- not as a fact.
+ * Crucially, unknown text is a weak `trend`, not `pain`. A product launch,
+ * article, repository or random discussion is not evidence that somebody has a
+ * painful problem merely because no stronger rule matched it.
  */
 export function detectSignalType(text: string): SignalTypeKey {
   for (const entry of TYPE_PATTERNS) {
     if (entry.patterns.some((pattern) => pattern.test(text))) return entry.type;
   }
-  return 'pain';
+  return 'trend';
 }
 
-/**
- * "£400 a month", "$1,200 per year", "€50/mo" and a bare "£5,000" are all
- * common phrasings. Missing the article forms would lose a large share of the
- * spending evidence, which is the most valuable kind this product handles.
- */
 const MONEY =
   /([£$€])\s?(\d{1,3}(?:[,\d]{0,12})(?:\.\d{1,2})?)\s*(?:(?:\/|per\s+|a\s+|each\s+|every\s+)(month|mo\b|year|yr\b|annum|week|wk\b))?/gi;
 
 const CURRENCY_BY_SYMBOL: Record<string, string> = { '£': 'GBP', $: 'USD', '€': 'EUR' };
 
-/**
- * Extracts money someone is observed to be paying.
- *
- * Spending evidence is the strongest kind this product handles -- "I pay £400 a
- * month for this" is worth more than any amount of agreement that a problem
- * exists -- so it is worth pulling out deterministically rather than hoping a
- * model notices.
- */
 export function detectMoney(
   text: string,
 ): { monthlyAmount?: number; oneOffAmount?: number; currency?: string; quote?: string } | undefined {
@@ -134,8 +126,6 @@ export function detectMoney(
 
   const currency = CURRENCY_BY_SYMBOL[symbol] ?? 'USD';
 
-  // Everything recurring is normalised to a monthly figure so amounts from
-  // different sources can be compared without each reader doing the arithmetic.
   if (period.startsWith('month') || period === 'mo') {
     return { monthlyAmount: amount, currency, quote };
   }
@@ -148,12 +138,9 @@ export function detectMoney(
   return { oneOffAmount: amount, currency, quote };
 }
 
-/** Company and product names, for entity overlap in dedupe and clustering. */
 export function detectEntities(text: string): string[] {
   const found = new Set<string>();
 
-  // Capitalised multi-word names, which is what most product and company names
-  // look like in prose.
   const pattern = /\b([A-Z][a-zA-Z0-9]{2,}(?:\s+[A-Z][a-zA-Z0-9]{2,}){0,2})\b/g;
   const stopWords = new Set([
     'The', 'This', 'That', 'They', 'There', 'These', 'Those', 'What', 'When',
