@@ -4,83 +4,142 @@ const json = async (res) => {
   return body;
 };
 
-const OSM_TAGS = {
-  roofer: ['craft','roofer'], roofers: ['craft','roofer'], roofing: ['craft','roofer'],
-  plumber: ['craft','plumber'], plumbers: ['craft','plumber'], plumbing: ['craft','plumber'],
-  electrician: ['craft','electrician'], electricians: ['craft','electrician'], electrical: ['craft','electrician'],
-  builder: ['craft','builder'], builders: ['craft','builder'], building: ['craft','builder'],
-  carpenter: ['craft','carpenter'], carpenters: ['craft','carpenter'],
-  painter: ['craft','painter'], painters: ['craft','painter'], decorator: ['craft','painter'], decorators: ['craft','painter'],
-  gardener: ['craft','gardener'], gardeners: ['craft','gardener'], landscaping: ['craft','landscaper'], landscaper: ['craft','landscaper'], landscapers: ['craft','landscaper'],
-  locksmith: ['craft','locksmith'], locksmiths: ['craft','locksmith'],
-  cleaner: ['craft','cleaning'], cleaners: ['craft','cleaning'], cleaning: ['craft','cleaning'],
-  restaurant: ['amenity','restaurant'], restaurants: ['amenity','restaurant'],
-  cafe: ['amenity','cafe'], cafes: ['amenity','cafe'],
-  garage: ['shop','car_repair'], garages: ['shop','car_repair'], mechanic: ['shop','car_repair'], mechanics: ['shop','car_repair'],
-  hairdresser: ['shop','hairdresser'], hairdressers: ['shop','hairdresser'], barber: ['shop','hairdresser'], barbers: ['shop','hairdresser'],
-  dentist: ['amenity','dentist'], dentists: ['amenity','dentist'],
-  solicitor: ['office','lawyer'], solicitors: ['office','lawyer'], lawyer: ['office','lawyer'], lawyers: ['office','lawyer'],
-  accountant: ['office','accountant'], accountants: ['office','accountant']
+const OSM_CATEGORIES = {
+  roofer: { tags: [['craft','roofer']], name: 'roof|roofing|roofs' },
+  roofers: { tags: [['craft','roofer']], name: 'roof|roofing|roofs' },
+  roofing: { tags: [['craft','roofer']], name: 'roof|roofing|roofs' },
+  plumber: { tags: [['craft','plumber']], name: 'plumb|heating|boiler' },
+  plumbers: { tags: [['craft','plumber']], name: 'plumb|heating|boiler' },
+  plumbing: { tags: [['craft','plumber']], name: 'plumb|heating|boiler' },
+  electrician: { tags: [['craft','electrician']], name: 'electric|electrical' },
+  electricians: { tags: [['craft','electrician']], name: 'electric|electrical' },
+  electrical: { tags: [['craft','electrician']], name: 'electric|electrical' },
+  builder: { tags: [['craft','builder']], name: 'builder|building|construction' },
+  builders: { tags: [['craft','builder']], name: 'builder|building|construction' },
+  building: { tags: [['craft','builder']], name: 'builder|building|construction' },
+  carpenter: { tags: [['craft','carpenter']], name: 'carpent|joiner|joinery' },
+  carpenters: { tags: [['craft','carpenter']], name: 'carpent|joiner|joinery' },
+  painter: { tags: [['craft','painter']], name: 'paint|decorat' },
+  painters: { tags: [['craft','painter']], name: 'paint|decorat' },
+  decorator: { tags: [['craft','painter']], name: 'paint|decorat' },
+  decorators: { tags: [['craft','painter']], name: 'paint|decorat' },
+  gardener: { tags: [['craft','gardener']], name: 'garden|landscap' },
+  gardeners: { tags: [['craft','gardener']], name: 'garden|landscap' },
+  landscaping: { tags: [['craft','landscaper'],['craft','gardener']], name: 'landscap|garden' },
+  landscaper: { tags: [['craft','landscaper']], name: 'landscap' },
+  landscapers: { tags: [['craft','landscaper']], name: 'landscap' },
+  locksmith: { tags: [['craft','locksmith']], name: 'locksmith|locks' },
+  locksmiths: { tags: [['craft','locksmith']], name: 'locksmith|locks' },
+  cleaner: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
+  cleaners: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
+  cleaning: { tags: [['craft','cleaning']], name: 'cleaning|cleaners' },
+  restaurant: { tags: [['amenity','restaurant']], name: '' },
+  restaurants: { tags: [['amenity','restaurant']], name: '' },
+  cafe: { tags: [['amenity','cafe']], name: '' },
+  cafes: { tags: [['amenity','cafe']], name: '' },
+  garage: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|car repair' },
+  garages: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|car repair' },
+  mechanic: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|mechanic' },
+  mechanics: { tags: [['shop','car_repair'],['craft','car_repair']], name: 'garage|motors|autos|mechanic' },
+  hairdresser: { tags: [['shop','hairdresser']], name: '' },
+  hairdressers: { tags: [['shop','hairdresser']], name: '' },
+  barber: { tags: [['shop','hairdresser']], name: 'barber' },
+  barbers: { tags: [['shop','hairdresser']], name: 'barber' },
+  dentist: { tags: [['amenity','dentist']], name: '' },
+  dentists: { tags: [['amenity','dentist']], name: '' },
+  solicitor: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  solicitors: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  lawyer: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  lawyers: { tags: [['office','lawyer']], name: 'solicitor|law' },
+  accountant: { tags: [['office','accountant']], name: 'accountant|accountancy' },
+  accountants: { tags: [['office','accountant']], name: 'accountant|accountancy' }
 };
 
 function splitBusinessQuery(query = '') {
   const text = String(query).trim();
   const m = text.match(/^(.+?)\s+in\s+(.+)$/i);
-  if (!m) throw new Error('For free OSM discovery use a query like "roofers in Brighton"');
+  if (!m) throw new Error('Use a query like "roofers in Brighton"');
   return { category: m[1].trim().toLowerCase(), location: m[2].trim() };
 }
 
 async function geocodeLocation(location) {
   const u = new URL('https://nominatim.openstreetmap.org/search');
-  u.searchParams.set('q', location);
+  u.searchParams.set('q', `${location}, UK`);
   u.searchParams.set('format', 'jsonv2');
   u.searchParams.set('limit', '1');
   u.searchParams.set('countrycodes', 'gb');
-  const res = await fetch(u, { headers: { 'user-agent': 'RevenueHunter/0.1 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' } });
+  const res = await fetch(u, { headers: { 'user-agent': 'RevenueHunter/0.2 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' } });
   const rows = await json(res);
   if (!Array.isArray(rows) || !rows[0]?.boundingbox) throw new Error(`Could not locate "${location}" with OpenStreetMap`);
-  const [south, north, west, east] = rows[0].boundingbox.map(Number);
+  let [south, north, west, east] = rows[0].boundingbox.map(Number);
+  // Expand small city/town boxes so trades that serve the area from nearby industrial estates are not missed.
+  const latPad = Math.max(0.045, (north - south) * 0.35);
+  const lonPad = Math.max(0.065, (east - west) * 0.35);
+  south -= latPad; north += latPad; west -= lonPad; east += lonPad;
   return { south, west, north, east, displayName: rows[0].display_name || location };
 }
 
-function osmWebsite(tags = {}) { return tags.website || tags['contact:website'] || tags.url || ''; }
+function osmWebsite(tags = {}) { return tags.website || tags['contact:website'] || tags.url || tags['contact:url'] || ''; }
 function osmPhone(tags = {}) { return tags.phone || tags['contact:phone'] || tags.mobile || tags['contact:mobile'] || ''; }
-function osmAddress(tags = {}) {
+function osmAddress(tags = {}, fallback = '') {
   const line = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
-  return [line, tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ');
+  return [line, tags['addr:city'] || tags['addr:town'], tags['addr:postcode']].filter(Boolean).join(', ') || fallback;
 }
 
-export async function discoverBusinessesFromOsm({ query, pageSize = 10 }) {
+function buildOverpassSelectors(config, box) {
+  const bbox = `(${box.south},${box.west},${box.north},${box.east})`;
+  const lines = [];
+  for (const [key, value] of config.tags) lines.push(`nwr["${key}"="${value}"]["name"]${bbox};`);
+  if (config.name) {
+    lines.push(`nwr["name"~"${config.name}",i]${bbox};`);
+    // Trade businesses are sometimes tagged only as offices/shops; name matching catches those records too.
+    lines.push(`nwr["office"]["name"~"${config.name}",i]${bbox};`);
+    lines.push(`nwr["shop"]["name"~"${config.name}",i]${bbox};`);
+  }
+  return lines.join('');
+}
+
+export async function discoverBusinessesFromOsm({ query, pageSize = 20 }) {
   const { category, location } = splitBusinessQuery(query);
-  const tag = OSM_TAGS[category] || OSM_TAGS[category.replace(/s$/, '')];
-  if (!tag) throw new Error(`Free OSM discovery does not yet recognise category "${category}"`);
-  const [key, value] = tag;
+  const config = OSM_CATEGORIES[category] || OSM_CATEGORIES[category.replace(/s$/, '')];
+  if (!config) throw new Error(`Free discovery does not yet recognise category "${category}"`);
   const box = await geocodeLocation(location);
-  const q = `[out:json][timeout:20];nwr["${key}"="${value}"]["name"](${box.south},${box.west},${box.north},${box.east});out center tags ${Math.min(50, Math.max(1, Number(pageSize) * 3))};`;
+  const q = `[out:json][timeout:25];(${buildOverpassSelectors(config, box)});out center tags ${Math.min(120, Math.max(20, Number(pageSize) * 6))};`;
   const res = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'RevenueHunter/0.1 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' },
+    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'RevenueHunter/0.2 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' },
     body: new URLSearchParams({ data: q })
   });
   const body = await json(res);
-  const mapped = (body.elements || []).map(e => ({
-    externalId: `osm:${e.type}:${e.id}`,
-    name: e.tags?.name || 'Unknown business',
-    address: osmAddress(e.tags),
-    website: osmWebsite(e.tags),
-    phone: osmPhone(e.tags),
-    category: `${key}:${value}`,
-    rating: null,
-    ratingCount: null,
-    source: 'openstreetmap',
-    latitude: e.lat ?? e.center?.lat ?? null,
-    longitude: e.lon ?? e.center?.lon ?? null
-  }));
-  // Revenue Hunter's current website-investigation path needs a website, so prioritise records that have one.
-  return mapped.sort((a,b) => Number(Boolean(b.website)) - Number(Boolean(a.website))).slice(0, Math.min(20, Math.max(1, pageSize)));
+  const seen = new Set();
+  const mapped = [];
+  for (const e of body.elements || []) {
+    const tags = e.tags || {};
+    const name = String(tags.name || '').trim();
+    if (!name) continue;
+    const key = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    mapped.push({
+      externalId: `osm:${e.type}:${e.id}`,
+      name,
+      address: osmAddress(tags, location),
+      website: osmWebsite(tags),
+      phone: osmPhone(tags),
+      category,
+      rating: null,
+      ratingCount: null,
+      source: 'openstreetmap',
+      latitude: e.lat ?? e.center?.lat ?? null,
+      longitude: e.lon ?? e.center?.lon ?? null
+    });
+  }
+  return mapped
+    .sort((a,b) => (Number(Boolean(b.website)) + Number(Boolean(b.phone))) - (Number(Boolean(a.website)) + Number(Boolean(a.phone))))
+    .slice(0, Math.min(30, Math.max(5, Number(pageSize))));
 }
 
-export async function discoverBusinesses({ apiKey, query, pageSize = 10 }) {
+export async function discoverBusinesses({ apiKey, query, pageSize = 20 }) {
   if (!apiKey) return discoverBusinessesFromOsm({ query, pageSize });
   const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
@@ -106,16 +165,18 @@ export async function discoverBusinesses({ apiKey, query, pageSize = 10 }) {
 }
 
 export async function inspectWebsite({ browser, url }) {
-  if (!url) return { markdown: '', links: [], error: 'No website' };
+  if (!url) return { markdown: '', links: [], title: '', error: 'No website' };
   if (!browser?.quickAction) throw new Error('Cloudflare Browser Run BROWSER binding is not configured');
   const [markdownRes, linksRes] = await Promise.all([
     browser.quickAction('markdown', { url, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } }),
     browser.quickAction('links', { url, visibleLinksOnly: true, excludeExternalLinks: false, gotoOptions: { waitUntil: 'networkidle2', timeout: 20000 } })
   ]);
+  if (!markdownRes.ok) throw new Error(`Website inspection failed (${markdownRes.status})`);
   const markdown = await markdownRes.text();
   const linksBody = await linksRes.json().catch(() => []);
   const links = Array.isArray(linksBody) ? linksBody : (linksBody?.result || []);
-  return { markdown, links };
+  const title = markdown.split('\n').map(x => x.replace(/^#+\s*/, '').trim()).find(Boolean) || '';
+  return { markdown, links, title };
 }
 
 export async function findContacts({ apiKey, domain, limit = 5 }) {
