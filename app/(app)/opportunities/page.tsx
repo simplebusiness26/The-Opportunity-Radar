@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { OPPORTUNITY_TYPES } from '../../../src/domain/taxonomy/opportunity-types';
 import { Button, DemoBadge, EmptyState, Panel, PanelHeader } from '../../../src/web/ui/primitives';
 import { StateChip } from '../../../src/web/ui/score';
+import { isOwnerFacingOpportunity } from '../../../src/application/opportunities/commercial-visibility';
 import { explainOpportunity } from '../../../src/application/opportunities/plain-language';
 import { requireWorkspacePage } from '../../../src/web/http/context';
 import { container } from '../../../src/composition/container';
@@ -12,7 +13,8 @@ export default async function OpportunitiesPage() {
   const { ctx } = await requireWorkspacePage('opportunities.read');
   const c = container();
 
-  const rows = await c.repos.opportunities.list(ctx.workspaceId, { includeDemo: true });
+  const allRows = await c.repos.opportunities.list(ctx.workspaceId, { includeDemo: true });
+  const rows = allRows.filter(isOwnerFacingOpportunity);
   const scores = await c.repos.scores.currentForMany(ctx.workspaceId, rows.map((row) => row.id));
 
   const ranked = [...rows].sort((a, b) => {
@@ -27,7 +29,7 @@ export default async function OpportunitiesPage() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-ink">Opportunities</h1>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-muted">
-            Quick-read business possibilities Radar has detected. Open one for the evidence and deeper analysis.
+            Only commercially qualified possibilities appear here. Trends and product chatter stay in Signals; repeated pain stays in Problems until Radar finds a concrete commercial mechanism.
           </p>
         </div>
         <Link href="/opportunities/new">
@@ -37,19 +39,19 @@ export default async function OpportunitiesPage() {
 
       <Panel className="min-w-0 overflow-hidden">
         <PanelHeader
-          title={`${rows.length} ${rows.length === 1 ? 'opportunity' : 'opportunities'}`}
-          hint="Each card tells you the problem, the opening and the next move."
+          title={`${rows.length} qualified ${rows.length === 1 ? 'opportunity' : 'opportunities'}`}
+          hint="Each card must explain the problem, the commercial opening and the next move."
         />
         {ranked.length === 0 ? (
           <EmptyState
-            title="Nothing under consideration"
+            title="No qualified opportunities yet"
             action={
               <Link href="/opportunities/new">
-                <Button variant="secondary">Create one</Button>
+                <Button variant="secondary">Create one manually</Button>
               </Link>
             }
           >
-            Radar will also create opportunities automatically when repeated evidence crosses its threshold.
+            Radar may still have useful signals and repeated problems. They will only move here when the evidence shows a real commercial opening rather than just interesting activity.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
@@ -78,7 +80,7 @@ export default async function OpportunitiesPage() {
 
                     <div className="mt-3 space-y-2.5">
                       <QuickLine label="Problem" value={plain.problem} />
-                      <QuickLine label="Opportunity" value={plain.opportunity} />
+                      <QuickLine label="Commercial opening" value={plain.opportunity} />
                       <QuickLine label="What we can do" value={plain.nextStep} accent />
                     </div>
 
@@ -92,11 +94,11 @@ export default async function OpportunitiesPage() {
                             score {score.attractiveness ?? '—'} · {Math.round(score.confidence * 100)}% confidence
                           </p>
                         ) : (
-                          <p className="font-mono text-xs text-caution">not scored yet</p>
+                          <p className="font-mono text-xs text-caution">awaiting score</p>
                         )}
                       </div>
                     </div>
-                    <p className="mt-2 font-mono text-xs text-accent">Open simple breakdown →</p>
+                    <p className="mt-2 font-mono text-xs text-accent">Open decision brief →</p>
                   </Link>
                 </li>
               );
