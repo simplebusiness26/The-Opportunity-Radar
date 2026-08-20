@@ -9,14 +9,6 @@ import { cx } from '../ui/primitives';
  * meant to be operated one-handed from a phone, so the primary destinations sit
  * within thumb reach rather than behind a hamburger.
  */
-/**
- * Destinations, split by how they are reached.
- *
- * The bottom bar is capped at five: a phone bar with eight targets is a bar
- * nobody hits accurately, and the sixth item silently wrapping to a second row
- * is how it broke once already. Everything else is one tap away in the sidebar
- * on a wide screen, and from the dashboard's own links on a phone.
- */
 const NAV = [
   { href: '/dashboard', label: 'Radar', short: 'Radar', primary: true },
   { href: '/opportunities', label: 'Opportunities', short: 'Opps', primary: true },
@@ -45,7 +37,7 @@ export function AppShell({
   mode: OperatingMode;
 }) {
   return (
-    <div className="min-h-dvh md:flex">
+    <div className="min-h-dvh max-w-full overflow-x-hidden md:flex">
       <aside className="hidden w-56 shrink-0 border-r border-line px-3 py-5 md:block">
         <div className="px-2">
           <p className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-ink-faint">Radar</p>
@@ -71,40 +63,36 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:hidden">
+      <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
+        <header className="flex min-w-0 items-center justify-between gap-3 border-b border-line px-4 py-3 md:hidden">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-ink">{workspaceName}</p>
             <ModeChip mode={mode} />
           </div>
-          <Link href="/settings" className="text-sm text-ink-muted">
+          <Link href="/settings" className="shrink-0 text-sm text-ink-muted">
             Settings
           </Link>
         </header>
 
-        {/* Bottom padding clears the fixed mobile nav and the home indicator. */}
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-4 md:px-6 md:pb-10">{children}</main>
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden px-4 pb-24 pt-4 md:px-6 md:pb-10">
+          {children}
+        </main>
 
-        {/*
-          Columns are derived from the destinations rather than hardcoded: a
-          fixed count silently wraps to a second row when a destination is
-          added, and the taller bar then covers the bottom of every page.
-        */}
         <nav
           aria-label="Primary"
           style={{ gridTemplateColumns: `repeat(${MOBILE_NAV.length}, minmax(0, 1fr))` }}
-          className="fixed inset-x-0 bottom-0 z-10 grid border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-10 grid max-w-full border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           {MOBILE_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cx(
-                'flex min-h-[56px] flex-col items-center justify-center gap-0.5 px-1',
+                'flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-0.5 px-1',
                 'text-center text-[0.65rem] leading-tight text-ink-muted active:text-ink',
               )}
             >
-              {item.short}
+              <span className="max-w-full truncate">{item.short}</span>
             </Link>
           ))}
         </nav>
