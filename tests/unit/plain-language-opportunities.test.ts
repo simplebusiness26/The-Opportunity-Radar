@@ -36,13 +36,21 @@ function opportunity(patch: Partial<OpportunityRow> = {}): OpportunityRow {
 
 describe('plain-English opportunity summaries', () => {
   it('keeps a manual opportunity tied to its actual customer and problem', () => {
-    const summary = explainOpportunity(opportunity(), null);
+    const summary = explainOpportunity(opportunity(), null, {
+      capabilityNames: ['Full-stack software development', 'Workflow automation'],
+      assetNames: ['Bookkeeping helper'],
+    });
 
     expect(summary.problemEstablished).toBe(true);
+    expect(summary.customer).toBe('small roofing companies');
     expect(summary.problem).toContain('owners lose hours every week');
     expect(summary.opportunity).toContain('small roofing companies');
     expect(summary.opportunity).toContain('owners lose hours every week');
-    expect(summary.nextStep).toContain('Validate the exact buyer');
+    expect(summary.nextStep).toContain('buying behaviour of small roofing companies');
+    expect(summary.whyUs).toContain('Full-stack software development');
+    expect(summary.whyUs).toContain('Workflow automation');
+    expect(summary.whyUs).toContain('Bookkeeping helper');
+    expect(summary.whatStillNeedsProof).toContain('small roofing companies');
     expect(summary.whyItAppeared).toContain('4 distinct evidence items');
     expect(summary.whyItAppeared).toContain('2 independent sources');
   });
@@ -60,6 +68,7 @@ describe('plain-English opportunity summaries', () => {
     );
 
     expect(summary.problemEstablished).toBe(false);
+    expect(summary.customer).toBe('Buyer not established');
     expect(summary.headline).toBe('Signal only: Sllm.nvim – Integrate Simon’s LLM cli into Neovim');
     expect(summary.opportunity).toContain('has not passed the commercial opportunity gate');
     expect(summary.opportunity).toContain('should not appear in the normal Opportunity feed');
