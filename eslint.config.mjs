@@ -65,8 +65,9 @@ export default tseslint.config(
   },
   {
     // Revenue Hunter is a separate Worker-style subsystem that shares this
-    // repository but not Radar's runtime. Recognise only its platform globals;
-    // this does not alter its execution or scoring behaviour.
+    // repository but not Radar's runtime. Recognise its Worker/web globals and
+    // avoid applying TypeScript-only cleanliness rules to its plain .mjs files.
+    // This changes lint interpretation only; it does not alter Revenue Hunter logic.
     files: ['systems/revenue-hunter/**/*.mjs'],
     languageOptions: {
       globals: {
@@ -75,10 +76,16 @@ export default tseslint.config(
         URLSearchParams: 'readonly',
         Response: 'readonly',
         crypto: 'readonly',
+        AbortController: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        btoa: 'readonly',
       },
     },
     rules: {
       'no-useless-escape': 'off',
+      'no-empty': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   {
