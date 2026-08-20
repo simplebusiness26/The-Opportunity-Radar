@@ -14,6 +14,7 @@ import {
   unpackEmbedding,
 } from '../../domain/dedupe/embedding';
 import { tokenize } from '../../domain/dedupe/fingerprint';
+import { isEligibleForAutomaticOpportunityFraming } from '../../domain/opportunities/automatic-framing-safety';
 import type { ActorCtx } from '../../domain/types/identity';
 import type { ClusterableEvidenceRow } from '../../ports/repositories/intelligence';
 import { createCluster, type ClusterDeps } from './cluster-evidence';
@@ -171,10 +172,13 @@ export async function seedProblemClusters(
   } = {},
 ): Promise<SeedProblemClustersResult> {
   const thresholds = options.thresholds ?? deps.thresholds ?? DEFAULT_CLUSTERING;
-  const allRows = await deps.repos.evidence.listClusterable(ctx.workspaceId, {
+  const fetchedRows = await deps.repos.evidence.listClusterable(ctx.workspaceId, {
     unclusteredOnly: true,
     limit: options.limit ?? 1000,
   });
+  const allRows = fetchedRows.filter((row) =>
+    isEligibleForAutomaticOpportunityFraming(`${row.claimText} ${row.bodyText}`),
+  );
 
   if (allRows.length === 0) {
     return {
