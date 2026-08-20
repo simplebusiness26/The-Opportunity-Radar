@@ -9,13 +9,20 @@ import {
 describe('commercial opportunity qualification', () => {
   it('classifies unrecognised and launch activity as trend rather than pain', () => {
     expect(detectSignalType('Show HN: Slim.nvim – integrate an LLM CLI into Neovim')).toBe('trend');
+    expect(detectSignalType('Ask HN: Is React a good idea for simple web forms?')).toBe('trend');
     expect(detectSignalType('A new open source project for terminal tabs')).toBe('trend');
   });
 
-  it('keeps Show HN product activity out of problem clustering even for legacy pain rows', () => {
+  it('keeps HN product and question activity out of problem clustering even for legacy pain rows', () => {
     expect(
       isEligibleForAutomaticProblemClustering(
         'Show HN: Slim.nvim – integrate an LLM CLI into Neovim (500 LOC Lua)',
+        'pain',
+      ),
+    ).toBe(false);
+    expect(
+      isEligibleForAutomaticProblemClustering(
+        'Ask HN: Is React a good idea for simple web forms?',
         'pain',
       ),
     ).toBe(false);
