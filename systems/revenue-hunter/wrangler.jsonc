@@ -1,6 +1,6 @@
 {
   "name": "revenue-hunter",
-  "main": "src/worker.mjs",
+  "main": "src/entry.mjs",
   "compatibility_date": "2026-08-19",
   "browser": { "binding": "BROWSER", "remote": true },
   "d1_databases": [
