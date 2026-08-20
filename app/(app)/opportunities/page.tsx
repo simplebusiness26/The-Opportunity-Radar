@@ -13,9 +13,17 @@ export default async function OpportunitiesPage() {
   const { ctx } = await requireWorkspacePage('opportunities.read');
   const c = container();
 
-  const allRows = await c.repos.opportunities.list(ctx.workspaceId, { includeDemo: true });
+  const [allRows, capabilities, assets] = await Promise.all([
+    c.repos.opportunities.list(ctx.workspaceId, { includeDemo: true }),
+    c.repos.graph.listCapabilities(ctx.workspaceId),
+    c.repos.graph.listAssets(ctx.workspaceId),
+  ]);
   const rows = allRows.filter(isOwnerFacingOpportunity);
   const scores = await c.repos.scores.currentForMany(ctx.workspaceId, rows.map((row) => row.id));
+  const explanationContext = {
+    capabilityNames: capabilities.map((capability) => capability.name),
+    assetNames: assets.map((asset) => asset.name),
+  };
 
   const ranked = [...rows].sort((a, b) => {
     const left = scores.get(a.id)?.attractiveness ?? -1;
@@ -29,7 +37,7 @@ export default async function OpportunitiesPage() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-ink">Opportunities</h1>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-muted">
-            Only commercially qualified possibilities appear here. Trends and product chatter stay in Signals; repeated pain stays in Problems until Radar finds a concrete commercial mechanism.
+            This screen is for decisions, not trends. Every automatic opportunity must name a buyer, a real problem, a commercial opening and a practical move we can make.
           </p>
         </div>
         <Link href="/opportunities/new">
@@ -40,7 +48,7 @@ export default async function OpportunitiesPage() {
       <Panel className="min-w-0 overflow-hidden">
         <PanelHeader
           title={`${rows.length} qualified ${rows.length === 1 ? 'opportunity' : 'opportunities'}`}
-          hint="Each card must explain the problem, the commercial opening and the next move."
+          hint="If Radar cannot explain who pays, what hurts and what we can do, it does not belong here."
         />
         {ranked.length === 0 ? (
           <EmptyState
@@ -51,14 +59,14 @@ export default async function OpportunitiesPage() {
               </Link>
             }
           >
-            Radar may still have useful signals and repeated problems. They will only move here when the evidence shows a real commercial opening rather than just interesting activity.
+            That is better than showing noise. Radar may still have useful signals and repeated problems; they only move here after a buyer and commercial mechanism are established.
           </EmptyState>
         ) : (
           <ul className="divide-y divide-line">
             {ranked.map((opportunity) => {
               const score = scores.get(opportunity.id);
               const type = OPPORTUNITY_TYPES[opportunity.typeKey];
-              const plain = explainOpportunity(opportunity, score);
+              const plain = explainOpportunity(opportunity, score, explanationContext);
               return (
                 <li key={opportunity.id} className="min-w-0">
                   <Link
@@ -79,9 +87,12 @@ export default async function OpportunitiesPage() {
                     </h2>
 
                     <div className="mt-3 space-y-2.5">
-                      <QuickLine label="Problem" value={plain.problem} />
-                      <QuickLine label="Commercial opening" value={plain.opportunity} />
-                      <QuickLine label="What we can do" value={plain.nextStep} accent />
+                      <QuickLine label="Who has the problem" value={plain.customer} />
+                      <QuickLine label="The problem" value={plain.problem} />
+                      <QuickLine label="The opportunity" value={plain.opportunity} />
+                      <QuickLine label="Why us" value={plain.whyUs} />
+                      <QuickLine label="What we can do now" value={plain.nextStep} accent />
+                      <QuickLine label="What still needs proving" value={plain.whatStillNeedsProof} />
                     </div>
 
                     <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
