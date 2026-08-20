@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm test",
+    "build": "node --check src/worker.mjs && node --check src/ui.mjs && node --check src/repository.mjs && node --check src/intelligence.mjs && node --check src/companies-house.mjs && node --check src/opportunity-library.mjs && node --check src/governor.mjs && npm test",
     "test": "node --test test/*.test.mjs",
     "dry-run": "node scripts/dry-run.mjs",
     "doctor": "node scripts/doctor.mjs"
