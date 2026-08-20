@@ -4,8 +4,84 @@ const json = async (res) => {
   return body;
 };
 
+const OSM_TAGS = {
+  roofer: ['craft','roofer'], roofers: ['craft','roofer'], roofing: ['craft','roofer'],
+  plumber: ['craft','plumber'], plumbers: ['craft','plumber'], plumbing: ['craft','plumber'],
+  electrician: ['craft','electrician'], electricians: ['craft','electrician'], electrical: ['craft','electrician'],
+  builder: ['craft','builder'], builders: ['craft','builder'], building: ['craft','builder'],
+  carpenter: ['craft','carpenter'], carpenters: ['craft','carpenter'],
+  painter: ['craft','painter'], painters: ['craft','painter'], decorator: ['craft','painter'], decorators: ['craft','painter'],
+  gardener: ['craft','gardener'], gardeners: ['craft','gardener'], landscaping: ['craft','landscaper'], landscaper: ['craft','landscaper'], landscapers: ['craft','landscaper'],
+  locksmith: ['craft','locksmith'], locksmiths: ['craft','locksmith'],
+  cleaner: ['craft','cleaning'], cleaners: ['craft','cleaning'], cleaning: ['craft','cleaning'],
+  restaurant: ['amenity','restaurant'], restaurants: ['amenity','restaurant'],
+  cafe: ['amenity','cafe'], cafes: ['amenity','cafe'],
+  garage: ['shop','car_repair'], garages: ['shop','car_repair'], mechanic: ['shop','car_repair'], mechanics: ['shop','car_repair'],
+  hairdresser: ['shop','hairdresser'], hairdressers: ['shop','hairdresser'], barber: ['shop','hairdresser'], barbers: ['shop','hairdresser'],
+  dentist: ['amenity','dentist'], dentists: ['amenity','dentist'],
+  solicitor: ['office','lawyer'], solicitors: ['office','lawyer'], lawyer: ['office','lawyer'], lawyers: ['office','lawyer'],
+  accountant: ['office','accountant'], accountants: ['office','accountant']
+};
+
+function splitBusinessQuery(query = '') {
+  const text = String(query).trim();
+  const m = text.match(/^(.+?)\s+in\s+(.+)$/i);
+  if (!m) throw new Error('For free OSM discovery use a query like "roofers in Brighton"');
+  return { category: m[1].trim().toLowerCase(), location: m[2].trim() };
+}
+
+async function geocodeLocation(location) {
+  const u = new URL('https://nominatim.openstreetmap.org/search');
+  u.searchParams.set('q', location);
+  u.searchParams.set('format', 'jsonv2');
+  u.searchParams.set('limit', '1');
+  u.searchParams.set('countrycodes', 'gb');
+  const res = await fetch(u, { headers: { 'user-agent': 'RevenueHunter/0.1 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' } });
+  const rows = await json(res);
+  if (!Array.isArray(rows) || !rows[0]?.boundingbox) throw new Error(`Could not locate "${location}" with OpenStreetMap`);
+  const [south, north, west, east] = rows[0].boundingbox.map(Number);
+  return { south, west, north, east, displayName: rows[0].display_name || location };
+}
+
+function osmWebsite(tags = {}) { return tags.website || tags['contact:website'] || tags.url || ''; }
+function osmPhone(tags = {}) { return tags.phone || tags['contact:phone'] || tags.mobile || tags['contact:mobile'] || ''; }
+function osmAddress(tags = {}) {
+  const line = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
+  return [line, tags['addr:city'], tags['addr:postcode']].filter(Boolean).join(', ');
+}
+
+export async function discoverBusinessesFromOsm({ query, pageSize = 10 }) {
+  const { category, location } = splitBusinessQuery(query);
+  const tag = OSM_TAGS[category] || OSM_TAGS[category.replace(/s$/, '')];
+  if (!tag) throw new Error(`Free OSM discovery does not yet recognise category "${category}"`);
+  const [key, value] = tag;
+  const box = await geocodeLocation(location);
+  const q = `[out:json][timeout:20];nwr["${key}"="${value}"]["name"](${box.south},${box.west},${box.north},${box.east});out center tags ${Math.min(50, Math.max(1, Number(pageSize) * 3))};`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'RevenueHunter/0.1 (+https://github.com/simplebusiness26/The-Opportunity-Radar)' },
+    body: new URLSearchParams({ data: q })
+  });
+  const body = await json(res);
+  const mapped = (body.elements || []).map(e => ({
+    externalId: `osm:${e.type}:${e.id}`,
+    name: e.tags?.name || 'Unknown business',
+    address: osmAddress(e.tags),
+    website: osmWebsite(e.tags),
+    phone: osmPhone(e.tags),
+    category: `${key}:${value}`,
+    rating: null,
+    ratingCount: null,
+    source: 'openstreetmap',
+    latitude: e.lat ?? e.center?.lat ?? null,
+    longitude: e.lon ?? e.center?.lon ?? null
+  }));
+  // Revenue Hunter's current website-investigation path needs a website, so prioritise records that have one.
+  return mapped.sort((a,b) => Number(Boolean(b.website)) - Number(Boolean(a.website))).slice(0, Math.min(20, Math.max(1, pageSize)));
+}
+
 export async function discoverBusinesses({ apiKey, query, pageSize = 10 }) {
-  if (!apiKey) throw new Error('GOOGLE_PLACES_API_KEY is not configured');
+  if (!apiKey) return discoverBusinessesFromOsm({ query, pageSize });
   const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
