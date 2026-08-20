@@ -4,6 +4,7 @@ import { OPPORTUNITY_TYPES } from '../../../../src/domain/taxonomy/opportunity-t
 import { describeConfidenceBand } from '../../../../src/domain/scoring/confidence';
 import { allowedTransitions } from '../../../../src/domain/state/opportunity-state';
 import type { DimensionOutcome } from '../../../../src/domain/scoring/engine';
+import { explainOpportunity } from '../../../../src/application/opportunities/plain-language';
 import { Callout, DemoBadge, Panel, PanelHeader } from '../../../../src/web/ui/primitives';
 import { DimensionBar, EvidenceCounts, ScorePair, StateChip } from '../../../../src/web/ui/score';
 import { OpportunityActions } from '../../../../src/web/components/opportunity-actions';
@@ -67,14 +68,23 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
 
   const type = OPPORTUNITY_TYPES[opportunity.typeKey];
   const band = score ? describeConfidenceBand(score.confidence) : null;
+  const plain = explainOpportunity(opportunity, score);
+  const rawTitleDiffers = plain.headline !== opportunity.title;
+  const verdict = !score
+    ? 'Not decided yet — Radar needs to score and validate it first.'
+    : (score.attractiveness ?? 0) >= 60 && score.confidence >= 0.5
+      ? 'Worth validating now — but still test the smallest version before a full build.'
+      : (score.attractiveness ?? 0) >= 60
+        ? 'Interesting, but not proven enough yet. Gather stronger evidence first.'
+        : 'Not strong enough to commit build time right now.';
 
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
+      <div className="min-w-0">
         <Link href="/opportunities" className="font-mono text-xs text-ink-faint hover:text-ink">
           ← Opportunities
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-ink-faint">#{opportunity.reference}</span>
           <StateChip state={opportunity.state} />
           <span className="font-mono text-[0.6rem] uppercase tracking-wider text-ink-faint">
@@ -82,10 +92,41 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
           </span>
           {opportunity.demo ? <DemoBadge /> : null}
         </div>
-        <h1 className="mt-2 text-xl font-semibold text-ink">{opportunity.title}</h1>
+        <h1 className="mt-2 break-words text-xl font-semibold leading-snug text-ink [overflow-wrap:anywhere]">
+          {plain.headline}
+        </h1>
+        {rawTitleDiffers ? (
+          <p className="mt-1 break-words text-xs text-ink-faint [overflow-wrap:anywhere]">
+            Original signal: {opportunity.title}
+          </p>
+        ) : null}
       </div>
 
-      <Panel className="p-4">
+      <Panel className="min-w-0 overflow-hidden border-accent/30">
+        <PanelHeader title="Quick decision view" hint="Read this first. The technical evidence is below." />
+        <div className="space-y-4 px-4 py-4">
+          <QuickSection label="The problem" value={plain.problem} />
+          <QuickSection label="The opportunity" value={plain.opportunity} />
+          <QuickSection label="What we can do" value={plain.nextStep} accent />
+          <QuickSection label="Why Radar found it" value={plain.whyItAppeared} />
+          <div className="grid min-w-0 gap-3 border-t border-line pt-4 sm:grid-cols-2">
+            <div className="min-w-0 rounded-md border border-line p-3">
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">Worth doing?</p>
+              <p className="mt-1 break-words text-sm font-medium leading-relaxed text-ink [overflow-wrap:anywhere]">
+                {verdict}
+              </p>
+            </div>
+            <div className="min-w-0 rounded-md border border-line p-3">
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">Cost / time</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                Not established yet. Radar will only show a figure when the requirement is evidenced rather than guessing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel className="min-w-0 overflow-hidden p-4">
         {score ? (
           <>
             <ScorePair
@@ -105,9 +146,12 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
             {band ? <p className="mt-3 text-sm text-ink-muted">{band.meaning}</p> : null}
           </>
         ) : (
-          <p className="text-sm text-ink-muted">
-            Not scored yet. Attach evidence and run scoring to see where this stands.
-          </p>
+          <div>
+            <p className="text-sm font-medium text-caution">Not scored yet</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+              Radar has detected this pattern, but it has not yet established whether it is attractive enough or evidenced enough to act on.
+            </p>
+          </div>
         )}
       </Panel>
 
@@ -119,24 +163,24 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         canInvestigate={mode.mode !== 'manual'}
       />
 
-      <Panel>
-        <PanelHeader title="Thesis" />
+      <Panel className="min-w-0 overflow-hidden">
+        <PanelHeader title="Deeper detail" hint="The machine record behind the simple explanation above." />
         <div className="space-y-3 px-4 py-3 text-sm leading-relaxed text-ink-muted">
-          <p>{opportunity.thesis}</p>
+          <p className="break-words [overflow-wrap:anywhere]">{opportunity.thesis}</p>
           {opportunity.targetCustomer ? (
-            <p>
+            <p className="break-words [overflow-wrap:anywhere]">
               <span className="text-ink-faint">Customer: </span>
               {opportunity.targetCustomer}
             </p>
           ) : null}
           {opportunity.problemStatement ? (
-            <p>
-              <span className="text-ink-faint">Problem: </span>
+            <p className="break-words [overflow-wrap:anywhere]">
+              <span className="text-ink-faint">Problem record: </span>
               {opportunity.problemStatement}
             </p>
           ) : null}
           {opportunity.whyNow ? (
-            <p>
+            <p className="break-words [overflow-wrap:anywhere]">
               <span className="text-ink-faint">Why now: </span>
               {opportunity.whyNow}
             </p>
@@ -145,10 +189,10 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       </Panel>
 
       {gaps.length > 0 ? (
-        <Callout tone="caution" title="What has not been established">
+        <Callout tone="caution" title="What still needs proving">
           <ul className="mt-1 space-y-1">
             {gaps.map((gap) => (
-              <li key={gap.key}>
+              <li key={gap.key} className="break-words [overflow-wrap:anywhere]">
                 <span className="text-ink">{gap.label}:</span> {gap.reason}
               </li>
             ))}
@@ -157,17 +201,17 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       ) : null}
 
       {dimensions.length > 0 ? (
-        <Panel>
+        <Panel className="min-w-0 overflow-hidden">
           <PanelHeader
             title="Score breakdown"
-            hint="Every number here is arithmetic over recorded evidence. Dashed bars are things nothing has established."
+            hint="How Radar calculated the score. A dashed bar means the answer is not established yet."
           />
           <ul className="divide-y divide-line">
             {dimensions.map((dimension) => (
-              <li key={dimension.key} className="px-4 py-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="text-sm text-ink">{dimension.label}</p>
-                  <p className="font-mono text-xs tabular-nums text-ink-muted">
+              <li key={dimension.key} className="min-w-0 px-4 py-3">
+                <div className="flex min-w-0 items-baseline justify-between gap-3">
+                  <p className="min-w-0 break-words text-sm text-ink [overflow-wrap:anywhere]">{dimension.label}</p>
+                  <p className="shrink-0 font-mono text-xs tabular-nums text-ink-muted">
                     {dimension.status === 'ok' && dimension.normalised !== null
                       ? Math.round(dimension.normalised * 100)
                       : '—'}
@@ -176,7 +220,9 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
                 <div className="mt-2">
                   <DimensionBar value={dimension.normalised} status={dimension.status} />
                 </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{dimension.explanation}</p>
+                <p className="mt-1.5 break-words text-xs leading-relaxed text-ink-muted [overflow-wrap:anywhere]">
+                  {dimension.explanation}
+                </p>
               </li>
             ))}
           </ul>
@@ -184,17 +230,17 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       ) : null}
 
       {confidenceFactors.length > 0 ? (
-        <Panel>
+        <Panel className="min-w-0 overflow-hidden">
           <PanelHeader title="Why this confidence" />
           <ul className="divide-y divide-line">
             {confidenceFactors.map((factor) => (
-              <li key={factor.label} className="flex items-start justify-between gap-3 px-4 py-2.5">
-                <div>
-                  <p className="text-sm text-ink">{factor.label}</p>
-                  <p className="text-xs text-ink-muted">{factor.note}</p>
+              <li key={factor.label} className="flex min-w-0 items-start justify-between gap-3 px-4 py-2.5">
+                <div className="min-w-0">
+                  <p className="break-words text-sm text-ink [overflow-wrap:anywhere]">{factor.label}</p>
+                  <p className="break-words text-xs text-ink-muted [overflow-wrap:anywhere]">{factor.note}</p>
                 </div>
                 <span
-                  className={`font-mono text-xs tabular-nums ${
+                  className={`shrink-0 font-mono text-xs tabular-nums ${
                     factor.contribution >= 0 ? 'text-positive' : 'text-negative'
                   }`}
                 >
@@ -207,7 +253,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         </Panel>
       ) : null}
 
-      <Panel>
+      <Panel className="min-w-0 overflow-hidden">
         <PanelHeader title="Evidence" hint={`${attached.length} attached`} />
         {attached.length === 0 ? (
           <p className="px-4 py-4 text-sm text-ink-muted">
@@ -216,7 +262,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         ) : (
           <ul className="divide-y divide-line">
             {attached.map((item) => (
-              <li key={`${item.evidenceUnitId}-${item.stance}`} className="px-4 py-2.5">
+              <li key={`${item.evidenceUnitId}-${item.stance}`} className="min-w-0 px-4 py-2.5">
                 <span
                   className={`font-mono text-[0.6rem] uppercase tracking-wider ${
                     item.stance === 'for' ? 'text-positive' : 'text-negative'
@@ -224,7 +270,9 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
                 >
                   {item.stance === 'for' ? 'supports' : 'argues against'}
                 </span>
-                {item.note ? <p className="mt-1 text-sm text-ink-muted">{item.note}</p> : null}
+                {item.note ? (
+                  <p className="mt-1 break-words text-sm text-ink-muted [overflow-wrap:anywhere]">{item.note}</p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -252,12 +300,12 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         csrfToken={session?.csrfSecret ?? ''}
       />
 
-      <Panel>
+      <Panel className="min-w-0 overflow-hidden">
         <PanelHeader title="History" />
         <ul className="divide-y divide-line">
           {transitions.map((transition, index) => (
-            <li key={index} className="px-4 py-2.5">
-              <div className="flex flex-wrap items-center gap-2">
+            <li key={index} className="min-w-0 px-4 py-2.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="font-mono text-[0.65rem] text-ink-faint">
                   {transition.createdAt.toISOString().slice(0, 10)}
                 </span>
@@ -271,11 +319,26 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
                   by {transition.actorKind}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-ink-muted">{transition.reason}</p>
+              <p className="mt-1 break-words text-sm text-ink-muted [overflow-wrap:anywhere]">{transition.reason}</p>
             </li>
           ))}
         </ul>
       </Panel>
+    </div>
+  );
+}
+
+function QuickSection({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">{label}</p>
+      <p
+        className={`mt-1 break-words text-sm leading-relaxed [overflow-wrap:anywhere] ${
+          accent ? 'font-medium text-ink' : 'text-ink-muted'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
