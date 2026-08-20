@@ -134,4 +134,31 @@ describe('automatic evidence-to-opportunity framing', () => {
 
     expect(await deps.repos.opportunities.list(ownerCtx.workspaceId, {})).toHaveLength(1);
   });
+
+  it('rotates through a bounded working set instead of processing the whole pool at once', async () => {
+    const { deps, ownerCtx, systemCtx } = await setup();
+
+    for (let index = 0; index < 5; index += 1) {
+      await recordSignal(deps, ownerCtx, {
+        title: `Unrelated observation ${index}`,
+        bodyText: `Distinct market observation number ${index} about category-${index} with no shared problem language.`,
+        url: `https://source-${index}.example/post/${index}`,
+        signalTypeKey: 'pain',
+        evidenceClass: 'community',
+        observedAt: new Date(NOW.getTime() + index * 1000),
+      });
+    }
+
+    const seeded = await seedProblemClusters(deps, systemCtx, {
+      limit: 10,
+      batchSize: 2,
+      batchIndex: 1,
+    });
+
+    expect(seeded.available).toBe(5);
+    expect(seeded.considered).toBe(2);
+    expect(seeded.batches).toBe(3);
+    expect(seeded.batch).toBe(1);
+    expect(seeded.created).toBe(0);
+  });
 });
