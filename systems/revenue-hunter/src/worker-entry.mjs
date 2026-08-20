@@ -1,6 +1,7 @@
 import worker from './worker.mjs';
 import { RevenueRepository } from './repository.mjs';
 import { customerDemoHtml } from './customer-demo.mjs';
+import { addStyleStudio } from './style-studio.mjs';
 import { addManualWebsite } from './manual-intake.mjs';
 
 const html=(body,status=200)=>new Response(body,{status,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
@@ -19,7 +20,7 @@ export default {
     const demo=url.pathname.match(/^\/demo\/([^/]+)$/);
     if(demo&&request.method==='GET'){
       const prospect=await repo.get(demo[1]);
-      return prospect?html(customerDemoHtml(prospect)):html('Not found',404);
+      return prospect?html(addStyleStudio(customerDemoHtml(prospect),prospect)):html('Not found',404);
     }
 
     const feedback=url.pathname.match(/^\/api\/demo-feedback\/([^/]+)$/);
