@@ -1,10 +1,10 @@
 {
   "name": "revenue-hunter",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node --check src/entry.mjs && node --check src/dashboard-client.js && node --check src/worker-entry.mjs && node --check src/customer-demo.mjs && node --check src/worker.mjs && node --check src/ui.mjs && node --check src/repository.mjs && node --check src/intelligence.mjs && node --check src/companies-house.mjs && node --check src/opportunity-library.mjs && node --check src/governor.mjs && npm test",
+    "build": "node --check src/entry.mjs && node --check src/dashboard-client.js && node --check src/worker-entry.mjs && node --check src/customer-demo.mjs && node --check src/style-studio.mjs && node --check src/manual-intake.mjs && node --check src/worker.mjs && node --check src/ui.mjs && node --check src/repository.mjs && node --check src/intelligence.mjs && node --check src/companies-house.mjs && node --check src/opportunity-library.mjs && node --check src/governor.mjs && npm test",
     "test": "node --test test/*.test.mjs",
     "dry-run": "node scripts/dry-run.mjs",
     "doctor": "node scripts/doctor.mjs"
