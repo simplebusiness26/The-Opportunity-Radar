@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: radar-production-tick
@@ -63,6 +64,8 @@ jobs:
       - name: Frame evidence-backed opportunities
         if: ${{ env.RADAR_TICK_TOKEN != '' }}
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           response_file="$(mktemp)"
@@ -87,4 +90,36 @@ jobs:
             exit 1
           fi
 
-          echo "Radar opportunity framing completed successfully (HTTP ${http_code})."
+          description="$(python - "$response_file" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as handle:
+              body = json.load(handle)
+          data = body.get('data', {})
+          seeded = data.get('seeded', {})
+          framed = data.get('framed', {})
+          print(
+              f"clusters {int(seeded.get('created', 0))}; "
+              f"opportunities {int(framed.get('created', 0))}; "
+              f"evidence considered {int(seeded.get('considered', 0))}"
+          )
+          PY
+          )"
+
+          payload="$(DESCRIPTION="$description" python - <<'PY'
+          import json, os
+          print(json.dumps({
+              'state': 'success',
+              'context': 'Radar opportunity framing',
+              'description': os.environ['DESCRIPTION'][:140],
+          }))
+          PY
+          )"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data "$payload"
+          echo
+          echo "Radar opportunity framing completed successfully (HTTP ${http_code}): ${description}."
