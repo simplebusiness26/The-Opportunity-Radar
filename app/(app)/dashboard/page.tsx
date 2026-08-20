@@ -5,6 +5,7 @@ import { readModeStatus } from '../../../src/application/system/mode';
 import { Callout, EmptyState, Panel, PanelHeader } from '../../../src/web/ui/primitives';
 import { readOnboarding } from '../../../src/application/system/onboarding';
 import { DeltaBadge, ScorePair, StateChip } from '../../../src/web/ui/score';
+import { explainOpportunity } from '../../../src/application/opportunities/plain-language';
 import { requireWorkspacePage } from '../../../src/web/http/context';
 import { container } from '../../../src/composition/container';
 
@@ -24,11 +25,11 @@ export default async function DashboardPage() {
   const best = view.bestMove;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 max-w-full space-y-4 overflow-hidden">
       <div>
         <h1 className="text-xl font-semibold text-ink">Radar</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          What deserves attention, why, and what changed.
+          A quick view of the problems Radar is seeing, the possible opportunity, and what to do next.
         </p>
       </div>
 
@@ -42,21 +43,23 @@ export default async function DashboardPage() {
         </Callout>
       ) : null}
 
-      <Panel className="p-4">
+      <Panel className="min-w-0 overflow-hidden p-4">
         <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-ink-faint">
           Best move right now
         </p>
         <h2
-          className={`mt-2 text-lg font-semibold ${
+          className={`mt-2 break-words text-lg font-semibold [overflow-wrap:anywhere] ${
             best.kind === 'no_action' ? 'text-caution' : 'text-ink'
           }`}
         >
           {best.headline}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">{best.reasoning}</p>
+        <p className="mt-2 break-words text-sm leading-relaxed text-ink-muted [overflow-wrap:anywhere]">
+          {best.reasoning}
+        </p>
 
         {best.opportunity && best.score ? (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <ScorePair
               attractiveness={best.score.attractiveness}
               confidence={best.score.confidence}
@@ -84,41 +87,61 @@ export default async function DashboardPage() {
         ) : null}
       </Panel>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel>
-          <PanelHeader title="Top opportunities" hint="Ranked by score. Confidence shown alongside, never blended in." />
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Panel className="min-w-0 overflow-hidden">
+          <PanelHeader
+            title="Opportunities Radar found"
+            hint="Read each one as: problem → opportunity → what we do next."
+          />
           {view.top.length === 0 ? (
             <EmptyState title="Nothing ranked yet">
-              Create an opportunity and attach evidence to it, and it will appear here.
+              Radar is still collecting and grouping evidence. Qualified opportunities will appear here automatically.
             </EmptyState>
           ) : (
             <ul className="divide-y divide-line">
-              {view.top.map(({ opportunity, score }) => (
-                <li key={opportunity.id}>
-                  <Link
-                    href={`/opportunities/${opportunity.id}`}
-                    className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-surface-raised"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+              {view.top.map(({ opportunity, score }) => {
+                const plain = explainOpportunity(opportunity, score);
+                return (
+                  <li key={opportunity.id} className="min-w-0">
+                    <Link
+                      href={`/opportunities/${opportunity.id}`}
+                      className="block min-w-0 px-4 py-4 hover:bg-surface-raised"
+                    >
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="font-mono text-xs text-ink-faint">#{opportunity.reference}</span>
                         <StateChip state={opportunity.state} />
+                        {score ? (
+                          <span className="font-mono text-[0.65rem] text-ink-muted">
+                            score {score.attractiveness ?? '—'} · {Math.round(score.confidence * 100)}% confidence
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[0.65rem] text-caution">not scored yet</span>
+                        )}
                       </div>
-                      <p className="mt-1 truncate text-sm text-ink">{opportunity.title}</p>
-                    </div>
-                    {score ? (
-                      <ScorePair attractiveness={score.attractiveness} confidence={score.confidence} />
-                    ) : (
-                      <span className="font-mono text-xs text-ink-faint">unscored</span>
-                    )}
-                  </Link>
-                </li>
-              ))}
+
+                      <h3 className="mt-2 break-words text-base font-semibold leading-snug text-ink [overflow-wrap:anywhere]">
+                        {plain.headline}
+                      </h3>
+
+                      <div className="mt-3 space-y-2.5">
+                        <QuickLine label="Problem" value={plain.problem} />
+                        <QuickLine label="Opportunity" value={plain.opportunity} />
+                        <QuickLine label="What we do" value={plain.nextStep} accent />
+                      </div>
+
+                      <p className="mt-3 break-words text-xs leading-relaxed text-ink-faint [overflow-wrap:anywhere]">
+                        {plain.whyItAppeared}
+                      </p>
+                      <p className="mt-2 font-mono text-xs text-accent">Open simple breakdown →</p>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
 
-        <Panel>
+        <Panel className="min-w-0 overflow-hidden">
           <PanelHeader title="What changed" hint="Movements over the last seven days." />
           {view.changes.length === 0 ? (
             <EmptyState title="Nothing has moved">
@@ -128,10 +151,10 @@ export default async function DashboardPage() {
           ) : (
             <ul className="divide-y divide-line">
               {view.changes.map((change, index) => (
-                <li key={index} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                <li key={index} className="flex min-w-0 items-start justify-between gap-3 px-4 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-ink">{change.opportunityTitle}</p>
-                    <p className="font-mono text-[0.65rem] uppercase tracking-wider text-ink-faint">
+                    <p className="break-words text-sm text-ink [overflow-wrap:anywhere]">{change.opportunityTitle}</p>
+                    <p className="break-words font-mono text-[0.65rem] uppercase tracking-wider text-ink-faint [overflow-wrap:anywhere]">
                       {change.composite.replace(/_/g, ' ')} · {change.cause.replace(/_/g, ' ')}
                     </p>
                   </div>
@@ -143,7 +166,7 @@ export default async function DashboardPage() {
         </Panel>
       </div>
 
-      <Panel>
+      <Panel className="min-w-0 overflow-hidden">
         <PanelHeader title="Machine status" />
         <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
           {[
@@ -152,8 +175,8 @@ export default async function DashboardPage() {
             { label: 'Active', value: view.counts.active },
             { label: 'Mode', value: mode.mode.replace('_', ' ') },
           ].map((stat) => (
-            <div key={stat.label} className="bg-surface px-4 py-3">
-              <p className="font-mono text-lg tabular-nums text-ink">{stat.value}</p>
+            <div key={stat.label} className="min-w-0 bg-surface px-4 py-3">
+              <p className="break-words font-mono text-lg tabular-nums text-ink [overflow-wrap:anywhere]">{stat.value}</p>
               <p className="font-mono text-[0.6rem] uppercase tracking-wider text-ink-faint">
                 {stat.label}
               </p>
@@ -174,10 +197,6 @@ export default async function DashboardPage() {
             </div>
           ) : null}
 
-          {/*
-            The bottom bar on a phone holds five destinations; these are the
-            rest, so nothing is reachable only on a wide screen.
-          */}
           <nav aria-label="More" className="mt-4 flex flex-wrap gap-x-4 gap-y-2 md:hidden">
             {(
               [
@@ -195,6 +214,21 @@ export default async function DashboardPage() {
           </nav>
         </div>
       </Panel>
+    </div>
+  );
+}
+
+function QuickLine({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-ink-faint">{label}</p>
+      <p
+        className={`mt-0.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere] ${
+          accent ? 'font-medium text-ink' : 'text-ink-muted'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

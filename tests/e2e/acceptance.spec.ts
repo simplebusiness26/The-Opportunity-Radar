@@ -50,7 +50,7 @@ test('kills an attractive-looking idea nobody pays to solve', async ({ page }) =
 
   // Willingness to pay is not established. It must not be scored as zero, and
   // it must not be quietly omitted either: the gap is stated.
-  await expect(page.getByText('What has not been established')).toBeVisible();
+  await expect(page.getByText('What still needs proving')).toBeVisible();
   await expect(page.getByText(/willingness to pay/i).first()).toBeVisible();
 
   const detail = await radar.get<{ score?: { confidence: number } }>(
@@ -203,9 +203,7 @@ test('says nothing warrants action rather than inventing something', async ({ pa
   await radar.post(`/api/v1/opportunities/${opportunityId}/score`);
   await page.goto('/dashboard');
 
-  await expect(
-    page.getByText('NO HIGH-CONFIDENCE OPPORTUNITY CURRENTLY WARRANTS ACTION'),
-  ).toBeVisible();
+  await expect(page.getByText('Nothing is strong enough to commit time to yet')).toBeVisible();
   // And it must offer the cheapest way to learn something, not just refuse.
   await expect(page.getByText(/Do not do yet|reduce/i).first()).toBeVisible();
 });

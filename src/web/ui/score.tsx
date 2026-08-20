@@ -9,7 +9,6 @@ import { cx } from './primitives';
  * "excellent and unproven" is a real and common state that the owner has to be
  * able to see at a glance.
  */
-
 export function ScorePair({
   attractiveness,
   confidence,
@@ -21,14 +20,14 @@ export function ScorePair({
 }) {
   const band = describeConfidenceBand(confidence);
   return (
-    <div className="flex items-baseline gap-4">
-      <div>
+    <div className="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-4 gap-y-2">
+      <div className="min-w-0">
         <p className={cx('font-mono tabular-nums text-ink', size === 'large' ? 'text-4xl' : 'text-2xl')}>
           {attractiveness ?? '—'}
         </p>
         <p className="font-mono text-[0.6rem] uppercase tracking-[0.15em] text-ink-faint">Score</p>
       </div>
-      <div>
+      <div className="min-w-0">
         <p
           className={cx(
             'font-mono tabular-nums',
@@ -38,7 +37,7 @@ export function ScorePair({
         >
           {Math.round(confidence * 100)}%
         </p>
-        <p className="font-mono text-[0.6rem] uppercase tracking-[0.15em] text-ink-faint">
+        <p className="max-w-full break-words font-mono text-[0.6rem] uppercase tracking-[0.15em] text-ink-faint [overflow-wrap:anywhere]">
           Confidence · {band.label}
         </p>
       </div>
@@ -53,10 +52,6 @@ export function confidenceTone(confidence: number): string {
   return 'text-positive';
 }
 
-/**
- * The three counts, shown together everywhere they appear. Keeping them
- * adjacent is what stops volume being mistaken for corroboration.
- */
 export function EvidenceCounts({
   mentions,
   unique,
@@ -67,7 +62,7 @@ export function EvidenceCounts({
   independent: number;
 }) {
   return (
-    <p className="font-mono text-xs text-ink-muted">
+    <p className="max-w-full break-words font-mono text-xs text-ink-muted [overflow-wrap:anywhere]">
       <span className="text-ink-faint">{mentions}</span> mentions
       <span className="mx-1.5 text-line">·</span>
       <span className="text-ink-muted">{unique}</span> unique evidence
@@ -84,7 +79,7 @@ export function DeltaBadge({ delta }: { delta: number }) {
   return (
     <span
       className={cx(
-        'font-mono text-xs tabular-nums',
+        'shrink-0 font-mono text-xs tabular-nums',
         positive ? 'text-positive' : 'text-negative',
       )}
     >
@@ -105,16 +100,12 @@ export function StateChip({ state }: { state: string }) {
           : 'border-line text-ink-muted';
 
   return (
-    <span className={cx('rounded-sm border px-1.5 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider', tone)}>
+    <span className={cx('max-w-full rounded-sm border px-1.5 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider [overflow-wrap:anywhere]', tone)}>
       {state.replace(/_/g, ' ')}
     </span>
   );
 }
 
-/**
- * A bar that distinguishes "measured and low" from "not measured". Rendering an
- * unmeasured dimension as an empty bar would read as a bad score.
- */
 export function DimensionBar({
   value,
   status,
