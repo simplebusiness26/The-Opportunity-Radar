@@ -3,21 +3,12 @@ import { ACTIVE_STATES } from '../../domain/state/opportunity-state';
 import type { Repositories } from '../../ports/repositories/index';
 import type { OpportunityRow, ScoreRow } from '../../ports/repositories/opportunities';
 
-/**
- * What the dashboard needs, computed deterministically.
- *
- * The headline recommendation is arithmetic over stored evidence, not a
- * generated sentence, so it says the same thing every time and can be checked
- * against the numbers it cites.
- */
-
 export interface BestMove {
   kind: 'act' | 'investigate' | 'no_action';
   opportunity: OpportunityRow | null;
   score: ScoreRow | null;
   headline: string;
   reasoning: string;
-  /** What Radar is specifically saying not to do yet. */
   doNotYet: string[];
 }
 
@@ -40,7 +31,6 @@ export interface DashboardView {
   };
 }
 
-/** Enough certainty to justify spending real money rather than more research. */
 const ACT_CONFIDENCE = 0.5;
 const ACT_SCORE = 60;
 
@@ -75,7 +65,6 @@ export async function buildDashboard(
     bestMove: chooseBestMove(ranked),
     top: ranked.slice(0, 5),
     changes: deltas
-      // Composite movements only; confidence is reported alongside them.
       .filter((delta) => Math.abs(delta.delta) >= 3)
       .map((delta) => ({
         opportunityId: delta.opportunityId,
@@ -94,12 +83,6 @@ export async function buildDashboard(
   };
 }
 
-/**
- * Choosing what to say.
- *
- * "Nothing warrants action" is a legitimate and useful answer, and the system
- * says it plainly rather than promoting the least-bad option to fill the space.
- */
 function chooseBestMove(
   ranked: Array<{ opportunity: OpportunityRow; score: ScoreRow | null }>,
 ): BestMove {
@@ -109,14 +92,26 @@ function chooseBestMove(
   }>;
 
   if (scored.length === 0) {
+    if (ranked.length > 0) {
+      return {
+        kind: 'no_action',
+        opportunity: null,
+        score: null,
+        headline: 'Opportunities found — Radar is not ready to pick one yet',
+        reasoning:
+          `Radar has detected ${ranked.length} ${ranked.length === 1 ? 'opportunity' : 'opportunities'}, but none has been scored yet. Open the cards below to see the problem, the possible opening and the safest next step.`,
+        doNotYet: ['Do not start building just because an opportunity has been detected.'],
+      };
+    }
+
     return {
       kind: 'no_action',
       opportunity: null,
       score: null,
-      headline: 'NO HIGH-CONFIDENCE OPPORTUNITY CURRENTLY WARRANTS ACTION',
+      headline: 'Nothing strong enough to act on yet',
       reasoning:
-        'Nothing has been scored yet. Record evidence and score an opportunity, and Radar will start ranking where effort should go.',
-      doNotYet: ['Do not build anything on the strength of an unscored idea.'],
+        'Radar is still collecting evidence. When a repeated problem becomes a real opportunity, it will appear below.',
+      doNotYet: ['Do not build without a clear problem and evidence that people care about it.'],
     };
   }
 
@@ -131,17 +126,15 @@ function chooseBestMove(
       kind: 'act',
       opportunity: best.opportunity,
       score: best.score,
-      headline: `Validate: ${best.opportunity.title}`,
-      reasoning: `Scores ${best.score.attractiveness} with ${Math.round(best.score.confidence * 100)}% confidence — ${describeConfidenceBand(best.score.confidence).meaning.toLowerCase()}`,
+      headline: `Best thing to validate: ${best.opportunity.title}`,
+      reasoning: `Radar scores this ${best.score.attractiveness}/100 with ${Math.round(best.score.confidence * 100)}% confidence. ${describeConfidenceBand(best.score.confidence).meaning}`,
       doNotYet: [
         'Do not build the full product yet.',
-        'Do not add billing, integrations or a second user role before the main uncertainty is settled.',
+        'Do not add billing, integrations or extra complexity before the main uncertainty is settled.',
       ],
     };
   }
 
-  // Something looks good but is not sufficiently evidenced. The honest move is
-  // to reduce that uncertainty, not to start building on it.
   const promising = scored.find((entry) => (entry.score.attractiveness ?? 0) >= ACT_SCORE);
 
   if (promising) {
@@ -150,11 +143,11 @@ function chooseBestMove(
       kind: 'investigate',
       opportunity: promising.opportunity,
       score: promising.score,
-      headline: `Reduce uncertainty on: ${promising.opportunity.title}`,
-      reasoning: `This scores ${promising.score.attractiveness}, but confidence is only ${Math.round(promising.score.confidence * 100)}%. ${
-        gaps[0]?.reason ?? 'The evidence does not yet support acting on it.'
+      headline: `Interesting, but prove this first: ${promising.opportunity.title}`,
+      reasoning: `The opportunity scores ${promising.score.attractiveness}/100, but confidence is only ${Math.round(promising.score.confidence * 100)}%. ${
+        gaps[0]?.reason ?? 'The evidence is not strong enough to act yet.'
       }`,
-      doNotYet: ['Do not build. The cheapest useful next step is evidence, not code.'],
+      doNotYet: ['Do not build yet. The useful next step is evidence, not code.'],
     };
   }
 
@@ -162,8 +155,8 @@ function chooseBestMove(
     kind: 'no_action',
     opportunity: null,
     score: null,
-    headline: 'NO HIGH-CONFIDENCE OPPORTUNITY CURRENTLY WARRANTS ACTION',
-    reasoning: `${scored.length} scored ${scored.length === 1 ? 'opportunity' : 'opportunities'}, none of which is both attractive and sufficiently evidenced. Continuing to watch is the correct move.`,
-    doNotYet: ['Do not start building to feel productive.'],
+    headline: 'Nothing is strong enough to commit time to yet',
+    reasoning: `${scored.length} ${scored.length === 1 ? 'opportunity has' : 'opportunities have'} been scored, but none is both attractive enough and proven enough. Keep watching rather than forcing a build.`,
+    doNotYet: ['Do not start building just to stay busy.'],
   };
 }
