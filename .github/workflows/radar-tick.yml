@@ -22,7 +22,7 @@ jobs:
   tick:
     name: Run Radar serverless tick
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
     environment: production
     env:
       RADAR_URL: https://the-opportunity-radar.vercel.app
@@ -123,3 +123,63 @@ jobs:
             --data "$payload"
           echo
           echo "Radar opportunity framing completed successfully (HTTP ${http_code}): ${description}."
+
+      - name: Score unscored opportunities
+        if: ${{ env.RADAR_TICK_TOKEN != '' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          http_code="$(curl \
+            --silent \
+            --show-error \
+            --retry 2 \
+            --retry-all-errors \
+            --max-time 55 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${RADAR_TICK_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            "${RADAR_URL}/api/v1/system/score-opportunities")"
+
+          cat "$response_file"
+          echo
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Radar automatic scoring failed with HTTP ${http_code}."
+            exit 1
+          fi
+
+          description="$(python - "$response_file" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding='utf-8') as handle:
+              data = json.load(handle).get('data', {})
+          print(
+              f"scored {int(data.get('scored', 0))}; "
+              f"failed {int(data.get('failed', 0))}; "
+              f"remaining {int(data.get('remaining', 0))}"
+          )
+          PY
+          )"
+
+          payload="$(DESCRIPTION="$description" python - <<'PY'
+          import json, os
+          print(json.dumps({
+              'state': 'success',
+              'context': 'Radar opportunity scoring',
+              'description': os.environ['DESCRIPTION'][:140],
+          }))
+          PY
+          )"
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            --data "$payload"
+          echo
+          echo "Radar automatic scoring completed successfully (HTTP ${http_code}): ${description}."
