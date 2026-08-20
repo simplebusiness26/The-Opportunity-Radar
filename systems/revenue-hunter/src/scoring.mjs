@@ -27,6 +27,17 @@ export function scoreProspect(input, weights = DEFAULT_WEIGHTS) {
 }
 
 export function inferOpportunitySignals({ markdown = '', links = [], website = '' }) {
+  if (!website) {
+    return {
+      findings: [{
+        code: 'NO_WEBSITE', severity: 92,
+        title: 'No discoverable business website',
+        solution: 'mobile-first local business website with quote capture'
+      }],
+      flags: { noWebsite: true, hasBooking: false, hasQuote: false, hasContact: false, hasForm: false, hasWhatsapp: false, hasStrongCta: false, hasHttps: false, thin: true }
+    };
+  }
+
   const text = `${markdown} ${links.join(' ')}`.toLowerCase();
   const hasBooking = /(book|appointment|schedule|reserve|calendly)/.test(text);
   const hasQuote = /(quote|estimate|quotation)/.test(text);
@@ -47,7 +58,7 @@ export function inferOpportunitySignals({ markdown = '', links = [], website = '
   if (!hasHttps) findings.push({ code: 'NO_HTTPS', severity: 90, title: 'Website URL is not HTTPS', solution: 'secure HTTPS setup' });
   if (thin) findings.push({ code: 'THIN_SITE', severity: 52, title: 'Site appears thin or low-information', solution: 'focused trust-and-conversion page' });
 
-  return { findings, flags: { hasBooking, hasQuote, hasContact, hasForm, hasWhatsapp, hasStrongCta, hasHttps, thin } };
+  return { findings, flags: { noWebsite: false, hasBooking, hasQuote, hasContact, hasForm, hasWhatsapp, hasStrongCta, hasHttps, thin } };
 }
 
 export function chooseBestFinding(findings = []) {
