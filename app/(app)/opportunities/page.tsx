@@ -94,7 +94,7 @@ export default async function OpportunitiesPage() {
         />
         {ranked.length === 0 ? (
           <EmptyState
-            title="Nothing is qualified for action yet"
+            title="No qualified opportunities yet"
             action={
               <Link href="/opportunities/new">
                 <Button variant="secondary">Create one manually</Button>
